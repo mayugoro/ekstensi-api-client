@@ -15,6 +15,7 @@
   --method-put: #2196f3;
   --method-patch: #9c27b0;
   --method-delete: #f44336;
+  --method-query: #00bcd4;
 }
 
 [data-theme="gray"] {
@@ -34,6 +35,7 @@
   --method-put: #8ab4f8;
   --method-patch: #c58af9;
   --method-delete: #f28b82;
+  --method-query: #78d9ec;
 }
 
 [data-theme="light"] {
@@ -53,6 +55,7 @@
   --method-put: #1565c0;
   --method-patch: #7b1fa2;
   --method-delete: #d32f2f;
+  --method-query: #00838f;
 }
 
 [data-theme="termius"] {
@@ -72,6 +75,107 @@
   --method-put: #47b3e2;
   --method-patch: #b347e2;
   --method-delete: #e24747;
+  --method-query: #47e2c2;
+}
+
+[data-theme="dracula"] {
+  --bg-dark: #282a36;
+  --bg-panel: #383a59; /* slightly lighter than bg-dark */
+  --bg-input: #44475a;
+  --bg-hover: #6272a4;
+  --text-primary: #f8f8f2;
+  --text-secondary: #bfbfbf;
+  --border-color: #44475a;
+  --accent-color: #ff79c6; /* Pink */
+  --accent-hover: #ff92d0;
+  --success-color: #50fa7b;
+  --error-color: #ff5555;
+  --method-get: #50fa7b; /* Green */
+  --method-post: #f1fa8c; /* Yellow */
+  --method-put: #8be9fd; /* Cyan */
+  --method-patch: #bd93f9; /* Purple */
+  --method-delete: #ff5555; /* Red */
+  --method-query: #ffb86c; /* Orange */
+}
+
+[data-theme="nord"] {
+  --bg-dark: #2e3440;
+  --bg-panel: #3b4252;
+  --bg-input: #434c5e;
+  --bg-hover: #4c566a;
+  --text-primary: #eceff4;
+  --text-secondary: #d8dee9;
+  --border-color: #4c566a;
+  --accent-color: #88c0d0; /* Frost */
+  --accent-hover: #8fbcbb;
+  --success-color: #a3be8c;
+  --error-color: #bf616a;
+  --method-get: #a3be8c;
+  --method-post: #ebcb8b;
+  --method-put: #81a1c1;
+  --method-patch: #b48ead;
+  --method-delete: #bf616a;
+  --method-query: #88c0d0;
+}
+
+[data-theme="monokai"] {
+  --bg-dark: #272822;
+  --bg-panel: #1e1f1c; /* slightly darker */
+  --bg-input: #3e3d32;
+  --bg-hover: #49483e;
+  --text-primary: #f8f8f2;
+  --text-secondary: #75715e;
+  --border-color: #3e3d32;
+  --accent-color: #a6e22e; /* Green */
+  --accent-hover: #c4ec67;
+  --success-color: #a6e22e;
+  --error-color: #f92672; /* Pink/Red */
+  --method-get: #a6e22e; /* Green */
+  --method-post: #e6db74; /* Yellow */
+  --method-put: #66d9ef; /* Blue */
+  --method-patch: #fd971f; /* Orange */
+  --method-delete: #f92672; /* Pink/Red */
+  --method-query: #ae81ff; /* Purple */
+}
+
+[data-theme="solarized"] {
+  --bg-dark: #002b36;
+  --bg-panel: #073642;
+  --bg-input: #586e75;
+  --bg-hover: #657b83;
+  --text-primary: #93a1a1; /* very readable light gray */
+  --text-secondary: #839496;
+  --border-color: #586e75;
+  --accent-color: #b58900; /* Yellow */
+  --accent-hover: #cb4b16; /* Orange */
+  --success-color: #859900; /* Green */
+  --error-color: #dc322f; /* Red */
+  --method-get: #859900; /* Green */
+  --method-post: #b58900; /* Yellow */
+  --method-put: #268bd2; /* Blue */
+  --method-patch: #6c71c4; /* Violet */
+  --method-delete: #dc322f; /* Red */
+  --method-query: #2aa198; /* Cyan */
+}
+
+[data-theme="vercel"] {
+  --bg-dark: #000000;
+  --bg-panel: #0a0a0a;
+  --bg-input: #171717;
+  --bg-hover: #262626;
+  --text-primary: #ededed;
+  --text-secondary: #a1a1aa;
+  --border-color: #333333;
+  --accent-color: #0070f3; /* Vercel Blue */
+  --accent-hover: #3291ff;
+  --success-color: #10b981;
+  --error-color: #ef4444;
+  --method-get: #10b981;
+  --method-post: #f59e0b;
+  --method-put: #0070f3;
+  --method-patch: #8b5cf6;
+  --method-delete: #ef4444;
+  --method-query: #06b6d4;
 }
 
 * {
@@ -169,6 +273,7 @@ input, select, textarea, button {
 .method-badge.PUT { color: var(--method-put); }
 .method-badge.PATCH { color: var(--method-patch); }
 .method-badge.DELETE { color: var(--method-delete); }
+.method-badge.QUERY { color: var(--method-query); }
 
 /* Main Workspace */
 .workspace {
@@ -231,12 +336,16 @@ input, select, textarea, button {
   border-bottom: 1px solid var(--border-color);
 }
 .request-method-select {
+  appearance: none;
+  -webkit-appearance: none;
   background-color: var(--bg-input);
   color: var(--text-primary);
   border: 1px solid var(--border-color);
-  padding: 0.5rem;
+  padding: 0.5rem 0.75rem;
   border-radius: 4px;
   font-weight: bold;
+  cursor: pointer;
+  outline: none;
 }
 .request-url-input {
   flex: 1;

@@ -1,5 +1,5 @@
-export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
-export type AppTheme = 'dark' | 'gray' | 'light' | 'termius';
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'QUERY';
+export type AppTheme = 'dark' | 'gray' | 'light' | 'termius' | 'dracula' | 'nord' | 'monokai' | 'solarized' | 'vercel';
 
 export interface KeyValuePair {
   id: string;

@@ -480,6 +480,7 @@ function App() {
                 <option value="PUT">PUT</option>
                 <option value="PATCH">PATCH</option>
                 <option value="DELETE">DELETE</option>
+                <option value="QUERY">QUERY</option>
               </select>
               <textarea 
                 className={`request-url-input ${isBlurred ? 'blur-effect' : ''}`}
@@ -599,7 +600,12 @@ function App() {
                     { id: 'dark', label: 'Dark', color: '#121212' },
                     { id: 'gray', label: 'Abu', color: '#202124' },
                     { id: 'light', label: 'Putih', color: '#ffffff' },
-                    { id: 'termius', label: 'Termius', color: '#141820' }
+                    { id: 'termius', label: 'Termius', color: '#141820' },
+                    { id: 'dracula', label: 'Dracula', color: '#282a36' },
+                    { id: 'nord', label: 'Nord', color: '#2e3440' },
+                    { id: 'monokai', label: 'Monokai', color: '#272822' },
+                    { id: 'solarized', label: 'Solarized', color: '#002b36' },
+                    { id: 'vercel', label: 'Vercel', color: '#000000' }
                   ].map(t => (
                     <div 
                       key={t.id}
