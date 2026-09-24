@@ -87,6 +87,7 @@ function App() {
   }, [fontFamily]);
 
   useEffect(() => {
+    document.documentElement.style.fontSize = fontSize;
     document.body.style.fontSize = fontSize;
   }, [fontSize]);
 
