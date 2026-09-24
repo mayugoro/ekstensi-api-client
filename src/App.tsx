@@ -4,7 +4,7 @@ import type { RequestConfig, TabData, HistoryItem, HttpMethod, AppTheme, SavedRe
 import { createEmptyRequest, parseUrlAndParams, t } from './utils';
 import { RequestEditor } from './components/RequestEditor';
 import { ResponseEditor } from './components/ResponseEditor';
-import { Clock, Plus, X, Trash2, Settings, Save, Folder } from 'lucide-react';
+import { Clock, Plus, X, Trash2, Settings, Save, Folder, Menu } from 'lucide-react';
 
 function App() {
   const [tabs, setTabs] = useState<TabData[]>([]);
@@ -29,6 +29,9 @@ function App() {
   const [isCleanupOpen, setIsCleanupOpen] = useState(false);
   const [cleanupDeleteLarge, setCleanupDeleteLarge] = useState(false);
   const [cleanupDeleteCount, setCleanupDeleteCount] = useState(0);
+  const [isHistoryFullscreenOpen, setIsHistoryFullscreenOpen] = useState(false);
+  const [historyDisplayLimit, setHistoryDisplayLimit] = useState(15);
+  const [historySearchQuery, setHistorySearchQuery] = useState('');
 
   // Settings temporary state
   const [tempTheme, setTempTheme] = useState<AppTheme>('dark');
@@ -183,7 +186,7 @@ function App() {
         request: { ...request },
         folderName: activeTab.folderName
       };
-      setHistory([historyItem, ...history].slice(0, 50)); // Keep last 50
+      setHistory([historyItem, ...history].slice(0, 500)); // Keep last 500
     } catch (e) {
       setTabs(tabs.map(t => t.id === activeTabId ? { 
         ...t, 
@@ -254,6 +257,11 @@ function App() {
 
     setHistory(remaining);
     setIsCleanupOpen(false);
+  };
+
+  const deleteSingleHistory = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setHistory(history.filter(item => item.id !== id));
   };
 
 
@@ -363,10 +371,14 @@ function App() {
             justifyContent: 'flex-end', 
             padding: '0.4rem 1rem',
             borderBottom: '1px solid var(--border-color)',
-            backgroundColor: 'var(--bg-panel)'
+            backgroundColor: 'var(--bg-panel)',
+            gap: '12px'
           }}>
-            <div onClick={openCleanupModal} title="Clean up history" style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--text-secondary)' }}>
+            <div onClick={openCleanupModal} title={t(language, 'cleanupHistoryTitle')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--text-secondary)' }}>
               <Trash2 size={16} />
+            </div>
+            <div onClick={() => { setIsHistoryFullscreenOpen(true); setHistoryDisplayLimit(15); setHistorySearchQuery(''); }} title={t(language, 'viewAllHistoryIconTitle')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--text-secondary)' }}>
+              <Menu size={16} />
             </div>
           </div>
         )}
@@ -660,9 +672,9 @@ function App() {
       {isCleanupOpen && (
         <div className="modal-overlay" onClick={() => setIsCleanupOpen(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ width: '460px', maxWidth: '90vw' }}>
-            <div className="modal-title" style={{ marginBottom: '0.5rem' }}>Clean up history</div>
+            <div className="modal-title" style={{ marginBottom: '0.5rem' }}>{t(language, 'cleanupHistoryTitle')}</div>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-              Deleting old history entries can make the Addon faster and free up some space.
+              {t(language, 'cleanupHistoryDesc')}
             </p>
 
             {/* Delete large entries */}
@@ -674,13 +686,13 @@ function App() {
                 style={{ cursor: 'pointer', width: '16px', height: '16px' }}
               />
               <span style={{ fontSize: '0.95rem' }}>
-                Delete large entries ({history.filter(i => JSON.stringify(i.request).length > 1024).length} entries over 1KB)
+                {t(language, 'deleteLargeEntries')} ({history.filter(i => JSON.stringify(i.request).length > 1024).length} {t(language, 'entriesOver1KB')})
               </span>
             </label>
 
             {/* Delete oldest entries slider */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <span style={{ fontSize: '0.95rem', whiteSpace: 'nowrap' }}>Delete oldest entries:</span>
+              <span style={{ fontSize: '0.95rem', whiteSpace: 'nowrap' }}>{t(language, 'deleteOldestEntries')}</span>
               <input
                 type="range"
                 min={0}
@@ -691,20 +703,135 @@ function App() {
                 style={{ flex: 1, cursor: 'pointer' }}
               />
               <span style={{ whiteSpace: 'nowrap', color: 'var(--text-secondary)', minWidth: '60px', textAlign: 'right' }}>
-                {cleanupDeleteCount} {cleanupDeleteCount === 1 ? 'entry' : 'entries'}
+                {cleanupDeleteCount} {cleanupDeleteCount === 1 ? t(language, 'entry') : t(language, 'entries')}
               </span>
             </div>
 
             <div className="modal-actions" style={{ marginTop: '1.5rem' }}>
-              <button className="btn-secondary" onClick={() => setIsCleanupOpen(false)}>Cancel</button>
+              <button className="btn-secondary" onClick={() => setIsCleanupOpen(false)}>{t(language, 'cancel')}</button>
               <button
                 className="btn-primary"
                 onClick={executeCleanup}
                 disabled={!cleanupDeleteLarge && cleanupDeleteCount === 0}
                 style={{ opacity: (!cleanupDeleteLarge && cleanupDeleteCount === 0) ? 0.5 : 1 }}
               >
-                Delete Entries
+                {t(language, 'deleteEntriesBtn')}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fullscreen History Modal */}
+      {isHistoryFullscreenOpen && (
+        <div className="modal-overlay" style={{ alignItems: 'flex-start' }} onClick={() => setIsHistoryFullscreenOpen(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ width: '100%', height: '100%', margin: 0, borderRadius: 0, display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-dark)' }}>
+            <div className="modal-title" style={{ padding: '1rem 2rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>{t(language, 'history')}</span>
+              <div 
+                onClick={() => setIsHistoryFullscreenOpen(false)}
+                style={{
+                  cursor: 'pointer',
+                  backgroundColor: 'var(--error-color)',
+                  color: 'white',
+                  borderRadius: '50%',
+                  width: '28px',
+                  height: '28px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'opacity 0.2s'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.opacity = '0.8'}
+                onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
+              >
+                <X size={16} strokeWidth={3} />
+              </div>
+            </div>
+            
+            <div style={{ flex: 1, overflowY: 'auto', padding: '2rem' }}>
+              <div style={{ maxWidth: '900px', margin: '0 auto', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <input
+                    type="text"
+                    value={historySearchQuery}
+                    onChange={(e) => setHistorySearchQuery(e.target.value)}
+                    placeholder={t(language, 'searchHistoryPlaceholder')}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem 1rem',
+                      borderRadius: '4px',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: 'var(--bg-panel)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.95rem'
+                    }}
+                  />
+                </div>
+
+                {(() => {
+                  const query = historySearchQuery.toLowerCase();
+                  const filteredHistory = query ? history.filter(item => {
+                    const urlMatch = item.request.url.toLowerCase().includes(query);
+                    const nameMatch = item.request.name?.toLowerCase().includes(query);
+                    const folderMatch = item.folderName?.toLowerCase().includes(query);
+                    return urlMatch || nameMatch || folderMatch;
+                  }) : history;
+
+                  if (filteredHistory.length === 0) {
+                    return <div style={{ color: 'var(--text-secondary)', textAlign: 'center', marginTop: '2rem' }}>{t(language, 'noHistoryFound')}</div>;
+                  }
+
+                  return (
+                    <>
+                      {filteredHistory.slice(0, historyDisplayLimit).map(item => {
+                        const date = new Date(item.timestamp);
+                        const formattedDate = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}, ${String(date.getHours()).padStart(2, '0')}.${String(date.getMinutes()).padStart(2, '0')}.${String(date.getSeconds()).padStart(2, '0')}`;
+                        
+                        return (
+                          <div key={item.id} style={{
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center', 
+                            padding: '1rem', 
+                            backgroundColor: 'var(--bg-panel)', 
+                            marginBottom: '4px',
+                            cursor: 'pointer'
+                          }} onClick={() => {
+                            loadHistoryItem(item);
+                            setIsHistoryFullscreenOpen(false);
+                          }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{formattedDate}</span>
+                              {item.folderName && item.request.name && (
+                                <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{item.folderName} / {item.request.name}</span>
+                              )}
+                              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                {item.request.method} {item.request.url || t(language, 'untitledReq')}
+                              </span>
+                            </div>
+                            
+                            <div onClick={(e) => deleteSingleHistory(item.id, e)} title={t(language, 'deleteEntryTitle')} style={{ cursor: 'pointer', padding: '0.5rem', color: 'var(--text-secondary)' }}>
+                              <Trash2 size={16} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {filteredHistory.length > historyDisplayLimit && (
+                        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1rem' }}>
+                          <button 
+                            className="btn-primary" 
+                            onClick={() => setHistoryDisplayLimit(filteredHistory.length)}
+                            style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+                          >
+                            {t(language, 'loadAllBtn')}
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
             </div>
           </div>
         </div>

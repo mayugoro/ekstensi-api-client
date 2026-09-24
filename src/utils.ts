@@ -83,7 +83,20 @@ export const t = (lang: string, key: string): string => {
       bodyTab: 'Body',
       authTab: 'Authorization',
       paramsTab: 'Params',
-      rawTab: 'Raw'
+      rawTab: 'Raw',
+      cleanupHistoryTitle: 'Clean up history',
+      cleanupHistoryDesc: 'Deleting old history entries can make the Addon faster and free up some space.',
+      deleteLargeEntries: 'Delete large entries',
+      entriesOver1KB: 'entries over 1KB',
+      deleteOldestEntries: 'Delete oldest entries:',
+      entry: 'entry',
+      entries: 'entries',
+      deleteEntriesBtn: 'Delete Entries',
+      searchHistoryPlaceholder: 'Search history by URL, name, or folder...',
+      noHistoryFound: 'No history entries found',
+      loadAllBtn: 'LOAD ALL (THIS MAY TAKE A WHILE)',
+      deleteEntryTitle: 'Delete entry',
+      viewAllHistoryIconTitle: 'View all history'
     },
     id: {
       history: 'Riwayat',
@@ -127,7 +140,20 @@ export const t = (lang: string, key: string): string => {
       bodyTab: 'Isi (Body)',
       authTab: 'Otorisasi',
       paramsTab: 'Parameter',
-      rawTab: 'Mentah (Raw)'
+      rawTab: 'Mentah (Raw)',
+      cleanupHistoryTitle: 'Bersihkan riwayat',
+      cleanupHistoryDesc: 'Menghapus riwayat lama bisa membuat Addon lebih cepat dan menghemat ruang penyimpanan.',
+      deleteLargeEntries: 'Hapus entri berukuran besar',
+      entriesOver1KB: 'entri di atas 1KB',
+      deleteOldestEntries: 'Hapus entri terlama:',
+      entry: 'entri',
+      entries: 'entri',
+      deleteEntriesBtn: 'Hapus Entri',
+      searchHistoryPlaceholder: 'Cari riwayat berdasarkan URL, nama, atau folder...',
+      noHistoryFound: 'Tidak ada entri riwayat yang ditemukan',
+      loadAllBtn: 'MUAT SEMUA (MUNGKIN MEMBUTUHKAN WAKTU LAMA)',
+      deleteEntryTitle: 'Hapus entri',
+      viewAllHistoryIconTitle: 'Lihat semua riwayat'
     }
   };
 
