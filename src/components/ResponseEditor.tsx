@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Copy, Check } from 'lucide-react';
 import type { ResponseDetails } from '../types';
-import { t } from '../utils';
+import { t, getHttpStatusText } from '../utils';
 import { JsonViewer } from './JsonViewer';
 
 interface Props {
@@ -57,7 +57,7 @@ export const ResponseEditor: React.FC<Props> = ({ response, loading, language })
     <div className="response-section">
       <div className="response-meta">
         <div className={`meta-item ${isError ? 'error' : 'success'}`}>
-          {t(language, 'status')}: <span>{response.status} {response.statusText}</span>
+          {t(language, 'status')}: <span>{response.status} {response.statusText || getHttpStatusText(response.status)}</span>
         </div>
         <div className="meta-item">
           {t(language, 'time')}: <span>{response.time} ms</span>
@@ -108,7 +108,7 @@ export const ResponseEditor: React.FC<Props> = ({ response, loading, language })
               {isCopied ? <Check size={16} /> : <Copy size={16} />}
             </div>
             
-            {(!isRaw || (typeof response.body === 'string' && !response.body.trim().startsWith('{') && !response.body.trim().startsWith('['))) ? (
+            {(isRaw || (typeof response.body === 'string' && !response.body.trim().startsWith('{') && !response.body.trim().startsWith('['))) ? (
               <div style={{ 
                 padding: '1rem', 
                 whiteSpace: 'pre-wrap', 
