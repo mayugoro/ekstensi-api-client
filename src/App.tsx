@@ -481,19 +481,29 @@ function App() {
                 <option value="PATCH">PATCH</option>
                 <option value="DELETE">DELETE</option>
               </select>
-              <input 
-                type="text" 
+              <textarea 
                 className={`request-url-input ${isBlurred ? 'blur-effect' : ''}`}
                 placeholder={t(language, 'enterUrl')}
                 value={activeTab.request.url}
-                onChange={(e) => updateActiveTabRequest({ ...activeTab.request, url: e.target.value })}
-                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                onChange={(e) => {
+                  e.target.style.height = 'auto';
+                  e.target.style.height = e.target.scrollHeight + 'px';
+                  updateActiveTabRequest({ ...activeTab.request, url: e.target.value.replace(/\r?\n/g, '') });
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                rows={1}
+                style={{ resize: 'none', overflow: 'hidden', minHeight: '38px', boxSizing: 'border-box' }}
               />
-              <button className="btn-secondary" onClick={() => { setIsSaveModalOpen(true); setSaveError(''); }} title={t(language, 'saveReq')}>
-                <Save size={18} />
-              </button>
               <button className="btn-primary" onClick={handleSend} disabled={activeTab.loading}>
                 {activeTab.loading ? t(language, 'sending') : t(language, 'send')}
+              </button>
+              <button className="btn-secondary" onClick={() => { setIsSaveModalOpen(true); setSaveError(''); }} title={t(language, 'saveReq')}>
+                <Save size={18} />
               </button>
             </div>
 
