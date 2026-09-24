@@ -14,6 +14,7 @@ function App() {
   const [sidebarTab, setSidebarTab] = useState<'history'|'collections'>('history');
   const [theme, setTheme] = useState<AppTheme>('dark');
   const [fontFamily, setFontFamily] = useState('monospace');
+  const [fontSize, setFontSize] = useState('100%');
   const [language, setLanguage] = useState('en');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
@@ -28,11 +29,13 @@ function App() {
   // Settings temporary state
   const [tempTheme, setTempTheme] = useState<AppTheme>('dark');
   const [tempFontFamily, setTempFontFamily] = useState('monospace');
+  const [tempFontSize, setTempFontSize] = useState('100%');
   const [tempLanguage, setTempLanguage] = useState('en');
 
   const openSettings = () => {
     setTempTheme(theme);
     setTempFontFamily(fontFamily);
+    setTempFontSize(fontSize);
     setTempLanguage(language);
     setIsSettingsOpen(true);
   };
@@ -40,13 +43,14 @@ function App() {
   const saveSettings = () => {
     setTheme(tempTheme);
     setFontFamily(tempFontFamily);
+    setFontSize(tempFontSize);
     setLanguage(tempLanguage);
     setIsSettingsOpen(false);
   };
 
   useEffect(() => {
     // Load from storage
-    chrome.storage?.local.get(['tabs', 'activeTabId', 'history', 'theme', 'savedRequests', 'fontFamily', 'language'], (result: any) => {
+    chrome.storage?.local.get(['tabs', 'activeTabId', 'history', 'theme', 'savedRequests', 'fontFamily', 'fontSize', 'language'], (result: any) => {
       if (result.tabs && result.tabs.length > 0) {
         setTabs(result.tabs);
         setActiveTabId(result.activeTabId || result.tabs[0].id);
@@ -61,6 +65,7 @@ function App() {
       }
       if (result.theme) setTheme(result.theme);
       if (result.fontFamily) setFontFamily(result.fontFamily);
+      if (result.fontSize) setFontSize(result.fontSize);
       if (result.language) setLanguage(result.language);
     });
   }, []);
@@ -82,11 +87,15 @@ function App() {
   }, [fontFamily]);
 
   useEffect(() => {
+    document.body.style.fontSize = fontSize;
+  }, [fontSize]);
+
+  useEffect(() => {
     // Save to storage
     if (tabs.length > 0) {
-      chrome.storage?.local.set({ tabs, activeTabId, history, theme, savedRequests, fontFamily, language });
+      chrome.storage?.local.set({ tabs, activeTabId, history, theme, savedRequests, fontFamily, fontSize, language });
     }
-  }, [tabs, activeTabId, history, theme, savedRequests, fontFamily, language]);
+  }, [tabs, activeTabId, history, theme, savedRequests, fontFamily, fontSize, language]);
 
   const addNewTab = (request?: RequestConfig) => {
     const newTab: TabData = {
@@ -535,6 +544,22 @@ function App() {
                   <option value="serif">Serif</option>
                   <option value="verdana">Verdana</option>
                   <option value="monospace">Monospace</option>
+                </select>
+              </div>
+
+              {/* Font Size */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.8rem', fontWeight: 'bold' }}>Ukuran Font (Font Size)</label>
+                <select 
+                  className="modal-input" 
+                  value={tempFontSize}
+                  onChange={(e) => setTempFontSize(e.target.value)}
+                >
+                  <option value="80%">80% (Lebih Kecil)</option>
+                  <option value="90%">90% (Kecil)</option>
+                  <option value="100%">100% (Normal)</option>
+                  <option value="110%">110% (Besar)</option>
+                  <option value="120%">120% (Lebih Besar)</option>
                 </select>
               </div>
             </div>
