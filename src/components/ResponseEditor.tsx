@@ -14,7 +14,7 @@ interface Props {
 export const ResponseEditor: React.FC<Props> = ({ response, loading, language }) => {
   const [activeTab, setActiveTab] = useState<'body'|'headers'>('body');
   const [isCopied, setIsCopied] = useState(false);
-  const [isRaw, setIsRaw] = useState(false);
+  const [isRaw, setIsRaw] = useState(true);
 
   const handleCopy = () => {
     if (!response) return;
@@ -114,7 +114,7 @@ export const ResponseEditor: React.FC<Props> = ({ response, loading, language })
                 whiteSpace: 'pre-wrap', 
                 wordBreak: 'break-all', 
                 fontFamily: 'inherit', 
-                fontSize: '0.85rem',
+                fontSize: 'inherit',
                 color: isError ? 'var(--error-color)' : 'var(--success-color)',
                 userSelect: 'text',
                 WebkitUserSelect: 'text'
@@ -146,7 +146,7 @@ export const ResponseEditor: React.FC<Props> = ({ response, loading, language })
         {activeTab === 'headers' && response.headers && (
           <div style={{ padding: '1rem', overflow: 'auto', backgroundColor: isRaw ? 'var(--bg-input)' : 'transparent', height: '100%' }}>
             {isRaw ? (
-              <div style={{ fontFamily: 'inherit', fontSize: '0.85rem', lineHeight: '1.4', whiteSpace: 'pre-wrap', wordBreak: 'break-all', userSelect: 'text', WebkitUserSelect: 'text' }}>
+              <div style={{ fontFamily: 'inherit', fontSize: 'inherit', lineHeight: '1.4', whiteSpace: 'pre-wrap', wordBreak: 'break-all', userSelect: 'text', WebkitUserSelect: 'text' }}>
                 {Object.entries(response.headers).map(([k, v]) => (
                   <div key={k}>
                     <span style={{ color: '#9cdcfe' }}>{k}</span>: <span style={{ color: '#ce9178' }}>{v}</span>
