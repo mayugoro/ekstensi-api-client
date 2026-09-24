@@ -550,18 +550,21 @@ function App() {
               {/* Font Size */}
               <div>
                 <label style={{ display: 'block', marginBottom: '0.8rem', fontWeight: 'bold' }}>Ukuran Font (Font Size)</label>
-                <select 
-                  className="modal-input" 
-                  value={tempFontSize}
-                  onChange={(e) => setTempFontSize(e.target.value)}
-                >
-                  <option value="50%">50% (Sangat Kecil)</option>
-                  <option value="80%">80% (Lebih Kecil)</option>
-                  <option value="90%">90% (Kecil)</option>
-                  <option value="100%">100% (Normal)</option>
-                  <option value="110%">110% (Besar)</option>
-                  <option value="120%">120% (Lebih Besar)</option>
-                </select>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <input 
+                    type="range" 
+                    min="50" 
+                    max="150" 
+                    step="5"
+                    className="modal-slider"
+                    value={parseInt(tempFontSize) || 50}
+                    onChange={(e) => setTempFontSize(`${e.target.value}%`)}
+                    style={{ flex: 1, cursor: 'pointer' }}
+                  />
+                  <span style={{ fontWeight: 'bold', width: '45px', textAlign: 'right', color: 'var(--text-secondary)' }}>
+                    {tempFontSize}
+                  </span>
+                </div>
               </div>
             </div>
             
