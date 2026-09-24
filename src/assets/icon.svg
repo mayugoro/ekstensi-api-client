@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Transparent background by default -->
+  <!-- Black circle -->
+  <circle cx="256" cy="256" r="240" fill="#000000" />
+  <!-- </> text or paths -->
+  <path d="M190 170 L110 256 L190 342" fill="none" stroke="#ffffff" stroke-width="36" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M322 170 L402 256 L322 342" fill="none" stroke="#ffffff" stroke-width="36" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M290 140 L222 372" fill="none" stroke="#ffffff" stroke-width="36" stroke-linecap="round" stroke-linejoin="round" />
+</svg>
