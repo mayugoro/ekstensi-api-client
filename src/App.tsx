@@ -321,19 +321,27 @@ function App() {
             {sidebarTab === 'history' ? <Clock size={16} style={{ marginRight: '8px', verticalAlign: 'text-bottom' }} /> : <Folder size={16} style={{ marginRight: '8px', verticalAlign: 'text-bottom' }} />}
             {sidebarTab === 'history' ? t(language, 'history') : t(language, 'saved')}
           </span>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <div className="settings-menu" title={t(language, 'settings')}>
-              <Settings 
-                size={16} 
-                style={{ cursor: 'pointer', color: 'var(--text-secondary)' }} 
-                onClick={openSettings} 
-              />
-            </div>
-            {sidebarTab === 'history' && (
-              <Trash2 size={16} style={{ cursor: 'pointer', color: 'var(--text-secondary)' }} onClick={clearHistory} />
-            )}
+          <div className="settings-menu" title={t(language, 'settings')}>
+            <Settings 
+              size={16} 
+              style={{ cursor: 'pointer', color: 'var(--text-secondary)' }} 
+              onClick={openSettings} 
+            />
           </div>
         </div>
+        {sidebarTab === 'history' && history.length > 0 && (
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'flex-end', 
+            padding: '0.4rem 1rem',
+            borderBottom: '1px solid var(--border-color)',
+            backgroundColor: 'var(--bg-panel)'
+          }}>
+            <div onClick={clearHistory} title="Clear all history" style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--text-secondary)' }}>
+              <Trash2 size={16} />
+            </div>
+          </div>
+        )}
         <div className="sidebar-content">
           {sidebarTab === 'history' && history.map(item => (
             <div key={item.id} className="sidebar-item" onClick={() => loadHistoryItem(item)}>
