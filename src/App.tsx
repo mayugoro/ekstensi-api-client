@@ -531,10 +531,10 @@ function App() {
                   value={tempFontFamily}
                   onChange={(e) => setTempFontFamily(e.target.value)}
                 >
-                  <option value="system">System Default (Bawaan OS)</option>
-                  <option value="serif">Serif (Klasik & Elegan)</option>
-                  <option value="verdana">Verdana (Lebar & Jelas)</option>
-                  <option value="monospace">Monospace (Cocok untuk Koding)</option>
+                  <option value="system">System Default</option>
+                  <option value="serif">Serif</option>
+                  <option value="verdana">Verdana</option>
+                  <option value="monospace">Monospace</option>
                 </select>
               </div>
             </div>
