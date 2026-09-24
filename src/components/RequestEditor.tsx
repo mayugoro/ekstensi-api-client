@@ -65,7 +65,7 @@ export const RequestEditor: React.FC<Props> = ({ request, onChange, language }) 
         <div className={`section-tab ${activeTab === 'auth' ? 'active' : ''}`} onClick={() => setActiveTab('auth')}>{t(language, 'authTab')}</div>
         <div className={`section-tab ${activeTab === 'params' ? 'active' : ''}`} onClick={() => setActiveTab('params')}>{t(language, 'paramsTab')}</div>
         <div 
-          style={{ marginLeft: 'auto', padding: '0.5rem 1rem', cursor: 'pointer', color: 'var(--text-secondary)' }}
+          style={{ display: 'flex', alignItems: 'center', padding: '0.5rem 1rem', cursor: 'pointer', color: 'var(--text-secondary)' }}
           onClick={() => setIsBlurred(!isBlurred)}
           title={isBlurred ? "Unblur contents" : "Blur contents"}
         >
