@@ -553,8 +553,8 @@ function App() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                   <input 
                     type="range" 
-                    min="50" 
-                    max="150" 
+                    min="20" 
+                    max="120" 
                     step="5"
                     className="modal-slider"
                     value={parseInt(tempFontSize) || 50}
