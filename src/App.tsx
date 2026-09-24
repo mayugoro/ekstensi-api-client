@@ -13,7 +13,7 @@ function App() {
   const [savedRequests, setSavedRequests] = useState<SavedRequest[]>([]);
   const [sidebarTab, setSidebarTab] = useState<'history'|'collections'>('history');
   const [theme, setTheme] = useState<AppTheme>('dark');
-  const [fontFamily, setFontFamily] = useState('Inter');
+  const [fontFamily, setFontFamily] = useState('monospace');
   const [language, setLanguage] = useState('en');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
@@ -27,7 +27,7 @@ function App() {
 
   // Settings temporary state
   const [tempTheme, setTempTheme] = useState<AppTheme>('dark');
-  const [tempFontFamily, setTempFontFamily] = useState('Inter');
+  const [tempFontFamily, setTempFontFamily] = useState('monospace');
   const [tempLanguage, setTempLanguage] = useState('en');
 
   const openSettings = () => {
@@ -71,11 +71,13 @@ function App() {
 
   useEffect(() => {
     if (fontFamily === 'monospace') {
-      document.body.style.fontFamily = 'monospace';
-    } else if (fontFamily === 'system') {
-      document.body.style.fontFamily = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      document.body.style.fontFamily = 'Consolas, "Courier New", monospace';
+    } else if (fontFamily === 'serif') {
+      document.body.style.fontFamily = 'Georgia, "Times New Roman", serif';
+    } else if (fontFamily === 'verdana') {
+      document.body.style.fontFamily = 'Verdana, Tahoma, sans-serif';
     } else {
-      document.body.style.fontFamily = `"${fontFamily}", sans-serif`;
+      document.body.style.fontFamily = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
     }
   }, [fontFamily]);
 
@@ -529,10 +531,10 @@ function App() {
                   value={tempFontFamily}
                   onChange={(e) => setTempFontFamily(e.target.value)}
                 >
-                  <option value="Inter">Inter (Modern & Clean)</option>
-                  <option value="Roboto">Roboto (Classic Android)</option>
-                  <option value="monospace">Monospace (Cocok untuk Koding)</option>
                   <option value="system">System Default (Bawaan OS)</option>
+                  <option value="serif">Serif (Klasik & Elegan)</option>
+                  <option value="verdana">Verdana (Lebar & Jelas)</option>
+                  <option value="monospace">Monospace (Cocok untuk Koding)</option>
                 </select>
               </div>
             </div>
