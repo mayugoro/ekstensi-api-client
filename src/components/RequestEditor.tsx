@@ -14,11 +14,12 @@ interface Props {
   onChange: (req: RequestConfig) => void;
   language: string;
   theme: string;
+  isBlurred: boolean;
+  setIsBlurred: (v: boolean) => void;
 }
 
-export const RequestEditor: React.FC<Props> = ({ request, onChange, language }) => {
+export const RequestEditor: React.FC<Props> = ({ request, onChange, language, isBlurred, setIsBlurred }) => {
   const [activeTab, setActiveTab] = useState<'params'|'headers'|'body'|'auth'>('headers');
-  const [isBlurred, setIsBlurred] = useState(false);
   const [jsonError, setJsonError] = useState<string | null>(null);
 
   useEffect(() => {

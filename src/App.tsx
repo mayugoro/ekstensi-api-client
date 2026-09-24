@@ -17,6 +17,7 @@ function App() {
   const [fontSize, setFontSize] = useState('50%');
   const [language, setLanguage] = useState('en');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isBlurred, setIsBlurred] = useState(false);
   
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [saveFolderName, setSaveFolderName] = useState('');
@@ -398,7 +399,7 @@ function App() {
               </select>
               <input 
                 type="text" 
-                className="request-url-input"
+                className={`request-url-input ${isBlurred ? 'blur-effect' : ''}`}
                 placeholder={t(language, 'enterUrl')}
                 value={activeTab.request.url}
                 onChange={(e) => updateActiveTabRequest({ ...activeTab.request, url: e.target.value })}
@@ -413,7 +414,14 @@ function App() {
             </div>
 
             <div className="workspace-content">
-              <RequestEditor request={activeTab.request} onChange={updateActiveTabRequest} language={language} theme={theme} />
+              <RequestEditor 
+                request={activeTab.request} 
+                onChange={updateActiveTabRequest} 
+                language={language} 
+                theme={theme} 
+                isBlurred={isBlurred}
+                setIsBlurred={setIsBlurred}
+              />
               <ResponseEditor response={activeTab.response} loading={activeTab.loading} language={language} theme={theme} />
             </div>
           </>
