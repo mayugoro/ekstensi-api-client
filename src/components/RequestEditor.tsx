@@ -75,15 +75,16 @@ export const RequestEditor: React.FC<Props> = ({ request, onChange, language, is
         {showAuth && <div className={`section-tab ${activeTab === 'auth' ? 'active' : ''}`} onClick={() => setActiveTab('auth')}>{t(language, 'authTab')}</div>}
         {showParams && <div className={`section-tab ${activeTab === 'params' ? 'active' : ''}`} onClick={() => setActiveTab('params')}>{t(language, 'paramsTab')}</div>}
         
-        <div style={{ marginLeft: 'auto', display: 'flex' }}>
-          <div 
-            style={{ display: 'flex', alignItems: 'center', padding: '0.5rem 1rem', cursor: 'pointer', color: 'var(--text-secondary)' }}
-            onClick={() => setIsBlurred(!isBlurred)}
-            title={isBlurred ? "Unblur contents" : "Blur contents"}
-          >
-            {isBlurred ? <EyeOff size={18} /> : <Eye size={18} />}
-          </div>
-          
+        {/* Blur icon – placed right after the last visible tab */}
+        <div 
+          onClick={() => setIsBlurred(!isBlurred)}
+          title={isBlurred ? "Unblur contents" : "Blur contents"}
+          style={{ display: 'flex', alignItems: 'center', padding: '0.5rem 0.75rem', cursor: 'pointer', color: isBlurred ? 'var(--accent-color)' : 'var(--text-secondary)' }}
+        >
+          {isBlurred ? <EyeOff size={16} /> : <Eye size={16} />}
+        </div>
+        
+        <div style={{ marginLeft: 'auto' }}>
           <div style={{ position: 'relative' }}>
             <div 
               style={{ display: 'flex', alignItems: 'center', padding: '0.5rem 1rem', cursor: 'pointer', color: showFilter ? 'var(--text-primary)' : 'var(--text-secondary)' }}
