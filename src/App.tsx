@@ -26,6 +26,9 @@ function App() {
   
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
   const [deleteTarget, setDeleteTarget] = useState<SavedRequest | null>(null);
+  const [isCleanupOpen, setIsCleanupOpen] = useState(false);
+  const [cleanupDeleteLarge, setCleanupDeleteLarge] = useState(false);
+  const [cleanupDeleteCount, setCleanupDeleteCount] = useState(0);
 
   // Settings temporary state
   const [tempTheme, setTempTheme] = useState<AppTheme>('dark');
@@ -225,9 +228,34 @@ function App() {
     }
   };
 
-  const clearHistory = () => {
-    setHistory([]);
+  const openCleanupModal = () => {
+    setCleanupDeleteLarge(false);
+    setCleanupDeleteCount(0);
+    setIsCleanupOpen(true);
   };
+
+  const executeCleanup = () => {
+    let remaining = [...history];
+
+    if (cleanupDeleteLarge) {
+      // Remove entries whose request body exceeds 1KB
+      remaining = remaining.filter(item => {
+        const size = JSON.stringify(item.request).length;
+        return size <= 1024;
+      });
+    }
+
+    if (cleanupDeleteCount > 0) {
+      // Sort by timestamp oldest first, remove oldest N
+      const sorted = [...remaining].sort((a, b) => a.timestamp - b.timestamp);
+      const toRemove = new Set(sorted.slice(0, cleanupDeleteCount).map(i => i.id));
+      remaining = remaining.filter(item => !toRemove.has(item.id));
+    }
+
+    setHistory(remaining);
+    setIsCleanupOpen(false);
+  };
+
 
   const handleSaveRequest = () => {
     if (!saveFolderName.trim() || !saveRequestName.trim() || !activeTab) return;
@@ -337,7 +365,7 @@ function App() {
             borderBottom: '1px solid var(--border-color)',
             backgroundColor: 'var(--bg-panel)'
           }}>
-            <div onClick={clearHistory} title="Clear all history" style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--text-secondary)' }}>
+            <div onClick={openCleanupModal} title="Clean up history" style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--text-secondary)' }}>
               <Trash2 size={16} />
             </div>
           </div>
@@ -623,6 +651,60 @@ function App() {
             
             <div className="modal-actions" style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
               <button className="btn-primary" onClick={saveSettings}>{t(language, 'save')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cleanup History Modal */}
+      {isCleanupOpen && (
+        <div className="modal-overlay" onClick={() => setIsCleanupOpen(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ width: '460px', maxWidth: '90vw' }}>
+            <div className="modal-title" style={{ marginBottom: '0.5rem' }}>Clean up history</div>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+              Deleting old history entries can make the Addon faster and free up some space.
+            </p>
+
+            {/* Delete large entries */}
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', marginBottom: '1.25rem' }}>
+              <input
+                type="checkbox"
+                checked={cleanupDeleteLarge}
+                onChange={(e) => setCleanupDeleteLarge(e.target.checked)}
+                style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+              />
+              <span style={{ fontSize: '0.95rem' }}>
+                Delete large entries ({history.filter(i => JSON.stringify(i.request).length > 1024).length} entries over 1KB)
+              </span>
+            </label>
+
+            {/* Delete oldest entries slider */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <span style={{ fontSize: '0.95rem', whiteSpace: 'nowrap' }}>Delete oldest entries:</span>
+              <input
+                type="range"
+                min={0}
+                max={history.length}
+                step={1}
+                value={cleanupDeleteCount}
+                onChange={(e) => setCleanupDeleteCount(Number(e.target.value))}
+                style={{ flex: 1, cursor: 'pointer' }}
+              />
+              <span style={{ whiteSpace: 'nowrap', color: 'var(--text-secondary)', minWidth: '60px', textAlign: 'right' }}>
+                {cleanupDeleteCount} {cleanupDeleteCount === 1 ? 'entry' : 'entries'}
+              </span>
+            </div>
+
+            <div className="modal-actions" style={{ marginTop: '1.5rem' }}>
+              <button className="btn-secondary" onClick={() => setIsCleanupOpen(false)}>Cancel</button>
+              <button
+                className="btn-primary"
+                onClick={executeCleanup}
+                disabled={!cleanupDeleteLarge && cleanupDeleteCount === 0}
+                style={{ opacity: (!cleanupDeleteLarge && cleanupDeleteCount === 0) ? 0.5 : 1 }}
+              >
+                Delete Entries
+              </button>
             </div>
           </div>
         </div>
