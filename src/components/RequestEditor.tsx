@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { RequestConfig } from '../types';
 import { KeyValueEditor } from './KeyValueEditor';
-import { Eye, EyeOff, ClipboardPaste, Wand2 } from 'lucide-react';
+import { Eye, EyeOff, ClipboardPaste, Wand2, Filter } from 'lucide-react';
 import { useEffect } from 'react';
 import { t } from '../utils';
 import EditorModule from 'react-simple-code-editor';
@@ -21,6 +21,15 @@ interface Props {
 export const RequestEditor: React.FC<Props> = ({ request, onChange, language, isBlurred, setIsBlurred }) => {
   const [activeTab, setActiveTab] = useState<'params'|'headers'|'body'|'auth'>('headers');
   const [jsonError, setJsonError] = useState<string | null>(null);
+  const [showFilter, setShowFilter] = useState(false);
+  const [showParams, setShowParams] = useState(true);
+  const [showAuth, setShowAuth] = useState(true);
+
+  // If a hidden tab was active, switch to headers
+  useEffect(() => {
+    if (!showParams && activeTab === 'params') setActiveTab('headers');
+    if (!showAuth && activeTab === 'auth') setActiveTab('headers');
+  }, [showParams, showAuth, activeTab]);
 
   useEffect(() => {
     // Monaco editor handles its own height based on the container
@@ -63,14 +72,54 @@ export const RequestEditor: React.FC<Props> = ({ request, onChange, language, is
       <div className="section-tabs">
         <div className={`section-tab ${activeTab === 'headers' ? 'active' : ''}`} onClick={() => setActiveTab('headers')}>{t(language, 'headersTab')}</div>
         <div className={`section-tab ${activeTab === 'body' ? 'active' : ''}`} onClick={() => setActiveTab('body')}>{t(language, 'bodyTab')}</div>
-        <div className={`section-tab ${activeTab === 'auth' ? 'active' : ''}`} onClick={() => setActiveTab('auth')}>{t(language, 'authTab')}</div>
-        <div className={`section-tab ${activeTab === 'params' ? 'active' : ''}`} onClick={() => setActiveTab('params')}>{t(language, 'paramsTab')}</div>
-        <div 
-          style={{ display: 'flex', alignItems: 'center', padding: '0.5rem 1rem', cursor: 'pointer', color: 'var(--text-secondary)' }}
-          onClick={() => setIsBlurred(!isBlurred)}
-          title={isBlurred ? "Unblur contents" : "Blur contents"}
-        >
-          {isBlurred ? <EyeOff size={18} /> : <Eye size={18} />}
+        {showAuth && <div className={`section-tab ${activeTab === 'auth' ? 'active' : ''}`} onClick={() => setActiveTab('auth')}>{t(language, 'authTab')}</div>}
+        {showParams && <div className={`section-tab ${activeTab === 'params' ? 'active' : ''}`} onClick={() => setActiveTab('params')}>{t(language, 'paramsTab')}</div>}
+        
+        <div style={{ marginLeft: 'auto', display: 'flex' }}>
+          <div 
+            style={{ display: 'flex', alignItems: 'center', padding: '0.5rem 1rem', cursor: 'pointer', color: 'var(--text-secondary)' }}
+            onClick={() => setIsBlurred(!isBlurred)}
+            title={isBlurred ? "Unblur contents" : "Blur contents"}
+          >
+            {isBlurred ? <EyeOff size={18} /> : <Eye size={18} />}
+          </div>
+          
+          <div style={{ position: 'relative' }}>
+            <div 
+              style={{ display: 'flex', alignItems: 'center', padding: '0.5rem 1rem', cursor: 'pointer', color: showFilter ? 'var(--text-primary)' : 'var(--text-secondary)' }}
+              onClick={() => setShowFilter(!showFilter)}
+              title="Filter tabs"
+            >
+              <Filter size={18} />
+            </div>
+            
+            {showFilter && (
+              <>
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }} onClick={() => setShowFilter(false)} />
+                <div className="settings-dropdown" style={{ padding: '0.5rem', minWidth: '200px' }}>
+                  <div style={{ padding: '0.5rem', borderBottom: '1px solid var(--border-color)', fontWeight: 'bold', fontSize: '0.9rem' }}>
+                    Visible Tabs
+                  </div>
+                  <label className="settings-item" style={{ cursor: 'not-allowed', opacity: 0.7 }}>
+                    <input type="checkbox" checked disabled />
+                    <span>{t(language, 'headersTab')}</span>
+                  </label>
+                  <label className="settings-item" style={{ cursor: 'not-allowed', opacity: 0.7 }}>
+                    <input type="checkbox" checked disabled />
+                    <span>{t(language, 'bodyTab')}</span>
+                  </label>
+                  <label className="settings-item">
+                    <input type="checkbox" checked={showAuth} onChange={(e) => setShowAuth(e.target.checked)} />
+                    <span>{t(language, 'authTab')}</span>
+                  </label>
+                  <label className="settings-item">
+                    <input type="checkbox" checked={showParams} onChange={(e) => setShowParams(e.target.checked)} />
+                    <span>{t(language, 'paramsTab')}</span>
+                  </label>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
       
