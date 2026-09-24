@@ -149,7 +149,7 @@ export const ResponseEditor: React.FC<Props> = ({ response, loading, language })
               <div style={{ fontFamily: 'inherit', fontSize: 'inherit', lineHeight: '1.4', whiteSpace: 'pre-wrap', wordBreak: 'break-all', userSelect: 'text', WebkitUserSelect: 'text' }}>
                 {Object.entries(response.headers).map(([k, v]) => (
                   <div key={k}>
-                    <span style={{ color: '#9cdcfe' }}>{k}</span>: <span style={{ color: '#ce9178' }}>{v}</span>
+                    <span style={{ color: 'var(--json-key)' }}>{k}</span>: <span style={{ color: 'var(--json-val-string)' }}>{v}</span>
                   </div>
                 ))}
               </div>

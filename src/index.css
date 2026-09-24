@@ -1,3 +1,11 @@
+:root {
+  --json-key: #9cdcfe;
+  --json-val-string: #ce9178;
+  --json-val-number: #b5cea8;
+  --json-val-boolean: #569cd6;
+  --json-bracket-color: #d4d4d4;
+}
+
 [data-theme="dark"] {
   --bg-dark: #121212;
   --bg-panel: #1e1e1e;
@@ -56,6 +64,12 @@
   --method-patch: #7b1fa2;
   --method-delete: #d32f2f;
   --method-query: #00838f;
+  
+  --json-key: #111111;
+  --json-val-string: #a31515;
+  --json-val-number: #098658;
+  --json-val-boolean: #0000ff;
+  --json-bracket-color: #333333;
 }
 
 [data-theme="termius"] {
@@ -141,11 +155,11 @@
 [data-theme="solarized"] {
   --bg-dark: #002b36;
   --bg-panel: #073642;
-  --bg-input: #586e75;
-  --bg-hover: #657b83;
+  --bg-input: #001e26;
+  --bg-hover: #124857;
   --text-primary: #93a1a1; /* very readable light gray */
-  --text-secondary: #839496;
-  --border-color: #586e75;
+  --text-secondary: #586e75;
+  --border-color: #073642;
   --accent-color: #b58900; /* Yellow */
   --accent-hover: #cb4b16; /* Orange */
   --success-color: #859900; /* Green */
@@ -339,7 +353,6 @@ input, select, textarea, button {
   appearance: none;
   -webkit-appearance: none;
   background-color: var(--bg-input);
-  color: var(--text-primary);
   border: 1px solid var(--border-color);
   padding: 0.5rem 0.75rem;
   border-radius: 4px;
@@ -347,6 +360,32 @@ input, select, textarea, button {
   cursor: pointer;
   outline: none;
 }
+.request-method-select.GET { background-color: var(--method-get); color: #fff; border-color: var(--method-get); text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
+.request-method-select.POST { background-color: var(--method-post); color: #fff; border-color: var(--method-post); text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
+.request-method-select.PUT { background-color: var(--method-put); color: #fff; border-color: var(--method-put); text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
+.request-method-select.PATCH { background-color: var(--method-patch); color: #fff; border-color: var(--method-patch); text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
+.request-method-select.DELETE { background-color: var(--method-delete); color: #fff; border-color: var(--method-delete); text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
+.request-method-select.QUERY { background-color: var(--method-query); color: #fff; border-color: var(--method-query); text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
+
+.custom-method-option {
+  padding: 0.5rem;
+  font-weight: bold;
+  cursor: pointer;
+  text-align: center;
+  color: #fff;
+  user-select: none;
+  transition: filter 0.2s;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+.custom-method-option:hover {
+  filter: brightness(1.2);
+}
+.custom-method-option.GET { background-color: var(--method-get); }
+.custom-method-option.POST { background-color: var(--method-post); }
+.custom-method-option.PUT { background-color: var(--method-put); }
+.custom-method-option.PATCH { background-color: var(--method-patch); }
+.custom-method-option.DELETE { background-color: var(--method-delete); }
+.custom-method-option.QUERY { background-color: var(--method-query); }
 .request-url-input {
   flex: 1;
   background-color: var(--bg-input);
@@ -519,17 +558,17 @@ input, select, textarea, button {
   font-style: italic;
   padding: 0 4px;
 }
-.json-bracket { color: #d4d4d4; }
-.json-punctuation { color: #d4d4d4; }
+.json-bracket { color: var(--json-bracket-color); }
+.json-punctuation { color: var(--json-bracket-color); }
 .json-bracket-end {
   display: flex;
 }
-.json-key { color: #9cdcfe; margin-right: 4px; }
-.json-string { color: #ce9178; word-break: break-all; }
-.json-number { color: #b5cea8; }
-.json-boolean { color: #569cd6; }
-.json-null { color: #569cd6; font-style: italic; }
-.leaf:hover { background-color: rgba(255, 255, 255, 0.05); }
+.json-key { color: var(--json-key); margin-right: 4px; }
+.json-string { color: var(--json-val-string); word-break: break-all; }
+.json-number { color: var(--json-val-number); }
+.json-boolean { color: var(--json-val-boolean); }
+.json-null { color: var(--json-val-boolean); font-style: italic; }
+.leaf:hover { background-color: rgba(128, 128, 128, 0.1); }
 .leaf { display: flex; align-items: flex-start; }
 
 /* Custom PrismJS Theme for React Simple Code Editor */
@@ -537,13 +576,13 @@ input, select, textarea, button {
   outline: none !important;
   color: var(--text-primary) !important;
 }
-.token.property { color: #9cdcfe; }
-.token.string { color: #ce9178; }
-.token.number { color: #b5cea8; }
-.token.boolean { color: #569cd6; }
-.token.null { color: #569cd6; font-style: italic; }
-.token.punctuation { color: #d4d4d4; }
-.token.operator { color: #d4d4d4; }
+.token.property { color: var(--json-key); }
+.token.string { color: var(--json-val-string); }
+.token.number { color: var(--json-val-number); }
+.token.boolean { color: var(--json-val-boolean); }
+.token.null { color: var(--json-val-boolean); font-style: italic; }
+.token.punctuation { color: var(--json-bracket-color); }
+.token.operator { color: var(--json-bracket-color); }
 
 /* Response Meta */
 .response-meta {

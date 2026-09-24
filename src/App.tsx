@@ -18,6 +18,7 @@ function App() {
   const [language, setLanguage] = useState('en');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isBlurred, setIsBlurred] = useState(false);
+  const [isMethodDropdownOpen, setIsMethodDropdownOpen] = useState(false);
   
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [saveFolderName, setSaveFolderName] = useState('');
@@ -470,18 +471,53 @@ function App() {
         {activeTab && (
           <>
             <div className="request-bar">
-              <select 
-                className="request-method-select"
-                value={activeTab.request.method}
-                onChange={(e) => updateActiveTabRequest({ ...activeTab.request, method: e.target.value as HttpMethod })}
-              >
-                <option value="GET">GET</option>
-                <option value="POST">POST</option>
-                <option value="PUT">PUT</option>
-                <option value="PATCH">PATCH</option>
-                <option value="DELETE">DELETE</option>
-                <option value="QUERY">QUERY</option>
-              </select>
+              <div style={{ position: 'relative' }}>
+                <div 
+                  className={`request-method-select ${activeTab.request.method}`}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minWidth: '95px', userSelect: 'none' }}
+                  onClick={() => setIsMethodDropdownOpen(!isMethodDropdownOpen)}
+                >
+                  {activeTab.request.method}
+                </div>
+                
+                {isMethodDropdownOpen && (
+                  <>
+                    <div 
+                      style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }}
+                      onClick={() => setIsMethodDropdownOpen(false)}
+                    />
+                    <div 
+                      style={{ 
+                        position: 'absolute', 
+                        top: '100%', 
+                        left: 0, 
+                        marginTop: '4px', 
+                        zIndex: 100, 
+                        display: 'flex', 
+                        flexDirection: 'column',
+                        borderRadius: '4px',
+                        overflow: 'hidden',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                        border: '1px solid var(--border-color)',
+                        width: '100%'
+                      }}
+                    >
+                      {['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'QUERY'].map(method => (
+                        <div 
+                          key={method}
+                          className={`custom-method-option ${method}`}
+                          onClick={() => {
+                            updateActiveTabRequest({ ...activeTab.request, method: method as HttpMethod });
+                            setIsMethodDropdownOpen(false);
+                          }}
+                        >
+                          {method}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
               <textarea 
                 className={`request-url-input ${isBlurred ? 'blur-effect' : ''}`}
                 placeholder={t(language, 'enterUrl')}
