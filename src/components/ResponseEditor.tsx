@@ -108,7 +108,7 @@ export const ResponseEditor: React.FC<Props> = ({ response, loading, language })
               {isCopied ? <Check size={16} /> : <Copy size={16} />}
             </div>
             
-            {(isRaw || (typeof response.body === 'string' && !response.body.trim().startsWith('{') && !response.body.trim().startsWith('['))) ? (
+            {(!isRaw || (typeof response.body === 'string' && !response.body.trim().startsWith('{') && !response.body.trim().startsWith('['))) ? (
               <div style={{ 
                 padding: '1rem', 
                 whiteSpace: 'pre-wrap', 
@@ -144,8 +144,8 @@ export const ResponseEditor: React.FC<Props> = ({ response, loading, language })
         )}
         
         {activeTab === 'headers' && response.headers && (
-          <div style={{ padding: '1rem', overflow: 'auto', backgroundColor: isRaw ? 'var(--bg-input)' : 'transparent', height: '100%' }}>
-            {isRaw ? (
+          <div style={{ padding: '1rem', overflow: 'auto', backgroundColor: !isRaw ? 'var(--bg-input)' : 'transparent', height: '100%' }}>
+            {!isRaw ? (
               <div style={{ fontFamily: 'inherit', fontSize: 'inherit', lineHeight: '1.4', whiteSpace: 'pre-wrap', wordBreak: 'break-all', userSelect: 'text', WebkitUserSelect: 'text' }}>
                 {Object.entries(response.headers).map(([k, v]) => (
                   <div key={k}>
