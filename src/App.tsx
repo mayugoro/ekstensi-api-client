@@ -14,7 +14,7 @@ function App() {
   const [sidebarTab, setSidebarTab] = useState<'history'|'collections'>('history');
   const [theme, setTheme] = useState<AppTheme>('dark');
   const [fontFamily, setFontFamily] = useState('monospace');
-  const [fontSize, setFontSize] = useState('100%');
+  const [fontSize, setFontSize] = useState('50%');
   const [language, setLanguage] = useState('en');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
@@ -29,7 +29,7 @@ function App() {
   // Settings temporary state
   const [tempTheme, setTempTheme] = useState<AppTheme>('dark');
   const [tempFontFamily, setTempFontFamily] = useState('monospace');
-  const [tempFontSize, setTempFontSize] = useState('100%');
+  const [tempFontSize, setTempFontSize] = useState('50%');
   const [tempLanguage, setTempLanguage] = useState('en');
 
   const openSettings = () => {
@@ -555,6 +555,7 @@ function App() {
                   value={tempFontSize}
                   onChange={(e) => setTempFontSize(e.target.value)}
                 >
+                  <option value="50%">50% (Sangat Kecil)</option>
                   <option value="80%">80% (Lebih Kecil)</option>
                   <option value="90%">90% (Kecil)</option>
                   <option value="100%">100% (Normal)</option>
