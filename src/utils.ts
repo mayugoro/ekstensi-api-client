@@ -1,0 +1,135 @@
+import { v4 as uuidv4 } from 'uuid';
+import type { RequestConfig, KeyValuePair } from './types';
+
+export const createEmptyRequest = (): RequestConfig => ({
+  id: uuidv4(),
+  method: 'GET',
+  url: '',
+  queryParams: [],
+  headers: [],
+  body: '',
+  authType: 'none',
+  authConfig: {},
+});
+
+export const createEmptyKV = (): KeyValuePair => ({
+  id: uuidv4(),
+  key: '',
+  value: '',
+  active: true,
+});
+
+export const parseUrlAndParams = (url: string, queryParams: KeyValuePair[]) => {
+  try {
+    const urlObj = new URL(url.includes('://') ? url : `http://${url}`);
+    
+    // Add params from KV
+    const activeParams = queryParams.filter(p => p.active && p.key);
+    activeParams.forEach(p => {
+      urlObj.searchParams.append(p.key, p.value);
+    });
+    
+    return urlObj.toString();
+  } catch (e) {
+    // Fallback if invalid URL
+    if (queryParams.filter(p => p.active && p.key).length > 0) {
+      const qs = queryParams.filter(p => p.active && p.key).map(p => `${p.key}=${p.value}`).join('&');
+      return url.includes('?') ? `${url}&${qs}` : `${url}?${qs}`;
+    }
+  }
+};
+
+export const t = (lang: string, key: string): string => {
+  const translations: Record<string, Record<string, string>> = {
+    en: {
+      history: 'History',
+      collections: 'Collections',
+      saved: 'Saved',
+      noHistory: 'No history yet',
+      noSaved: 'No saved requests yet',
+      untitledReq: 'Untitled Request',
+      enterUrl: 'Enter request URL',
+      send: 'Send',
+      sending: 'Sending...',
+      saveReq: 'Save Request',
+      delReq: 'Delete Request',
+      cancel: 'Cancel',
+      save: 'Save',
+      del: 'Delete',
+      status: 'Status',
+      time: 'Time',
+      size: 'Size',
+      type: 'Type',
+      token: 'Token',
+      username: 'Username',
+      password: 'Password',
+      key: 'Key',
+      value: 'Value',
+      addTo: 'Add to',
+      paste: 'Paste',
+      pretty: 'Pretty',
+      invalidJson: 'Invalid JSON',
+      settings: 'Settings',
+      themeColor: 'Theme Color',
+      language: 'Language',
+      fontStyle: 'Font Style',
+      delConfirmPrefix: 'Are you sure you want to delete the request',
+      delConfirmSuffix: 'from the folder',
+      saveErrorPrefix: 'Failed: A request named',
+      saveErrorSuffix: 'already exists in folder',
+      folderCol: 'Folder / Collection',
+      reqName: 'Request Name',
+      headersTab: 'Headers',
+      bodyTab: 'Body',
+      authTab: 'Authorization',
+      paramsTab: 'Params',
+      rawTab: 'Raw'
+    },
+    id: {
+      history: 'Riwayat',
+      collections: 'Koleksi',
+      saved: 'Tersimpan',
+      noHistory: 'Belum ada riwayat',
+      noSaved: 'Belum ada request tersimpan',
+      untitledReq: 'Request Tanpa Nama',
+      enterUrl: 'Masukkan URL request',
+      send: 'Kirim',
+      sending: 'Mengirim...',
+      saveReq: 'Simpan Request',
+      delReq: 'Hapus Request',
+      cancel: 'Batal',
+      save: 'Simpan',
+      del: 'Hapus',
+      status: 'Status',
+      time: 'Waktu',
+      size: 'Ukuran',
+      type: 'Tipe',
+      token: 'Token',
+      username: 'Username',
+      password: 'Password',
+      key: 'Kunci (Key)',
+      value: 'Nilai (Value)',
+      addTo: 'Tambahkan ke',
+      paste: 'Tempel',
+      pretty: 'Rapihkan',
+      invalidJson: 'JSON Tidak Valid',
+      settings: 'Pengaturan',
+      themeColor: 'Tema Warna',
+      language: 'Bahasa',
+      fontStyle: 'Gaya Font (Tipografi)',
+      delConfirmPrefix: 'Apakah kamu yakin ingin menghapus request',
+      delConfirmSuffix: 'dari folder',
+      saveErrorPrefix: 'Gagal: Request bernama',
+      saveErrorSuffix: 'sudah ada di folder',
+      folderCol: 'Folder / Koleksi',
+      reqName: 'Nama Request',
+      headersTab: 'Header',
+      bodyTab: 'Isi (Body)',
+      authTab: 'Otorisasi',
+      paramsTab: 'Parameter',
+      rawTab: 'Mentah (Raw)'
+    }
+  };
+
+  return translations[lang]?.[key] || translations['en'][key] || key;
+};

@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Full-Page API Client",
+  "version": "1.0.0",
+  "description": "A Postman-like API client built as a Chrome Extension",
+  "action": {},
+  "background": {
+    "service_worker": "assets/background.js",
+    "type": "module"
+  },
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ]
+}
