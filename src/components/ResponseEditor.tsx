@@ -67,21 +67,21 @@ export const ResponseEditor: React.FC<Props> = ({ response, loading, language })
         </div>
       </div>
       
-      <div className="section-tabs" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingRight: '1rem' }}>
-        <div style={{ display: 'flex' }}>
+      <div className="section-tabs" style={{ display: 'flex', alignItems: 'center', paddingRight: '1rem', borderBottom: '1px solid var(--border-color)' }}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
           <div className={`section-tab ${activeTab === 'headers' ? 'active' : ''}`} onClick={() => setActiveTab('headers')}>{t(language, 'headersTab')}</div>
           <div className={`section-tab ${activeTab === 'body' ? 'active' : ''}`} onClick={() => setActiveTab('body')}>{t(language, 'bodyTab')}</div>
+          
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: 'inherit', color: 'var(--text-secondary)', marginLeft: '1rem' }}>
+            <input 
+              type="checkbox" 
+              checked={isRaw}
+              onChange={(e) => setIsRaw(e.target.checked)}
+              style={{ cursor: 'pointer' }}
+            />
+            {t(language, 'rawTab')}
+          </label>
         </div>
-        
-        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-          <input 
-            type="checkbox" 
-            checked={isRaw}
-            onChange={(e) => setIsRaw(e.target.checked)}
-            style={{ cursor: 'pointer' }}
-          />
-          {t(language, 'rawTab')}
-        </label>
       </div>
       
       <div className="section-content" style={{ padding: 0 }}>
