@@ -22,8 +22,22 @@ export const RequestEditor: React.FC<Props> = ({ request, onChange, language, is
   const [activeTab, setActiveTab] = useState<'params'|'headers'|'body'|'auth'>('headers');
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [showFilter, setShowFilter] = useState(false);
-  const [showParams, setShowParams] = useState(true);
-  const [showAuth, setShowAuth] = useState(true);
+  const [showParams, setShowParams] = useState(() => {
+    const saved = localStorage.getItem('filter_showParams');
+    return saved !== null ? saved === 'true' : false;
+  });
+  const [showAuth, setShowAuth] = useState(() => {
+    const saved = localStorage.getItem('filter_showAuth');
+    return saved !== null ? saved === 'true' : false;
+  });
+
+  // Persist filter to localStorage
+  useEffect(() => {
+    localStorage.setItem('filter_showParams', String(showParams));
+  }, [showParams]);
+  useEffect(() => {
+    localStorage.setItem('filter_showAuth', String(showAuth));
+  }, [showAuth]);
 
   // If a hidden tab was active, switch to headers
   useEffect(() => {

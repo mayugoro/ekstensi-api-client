@@ -177,7 +177,8 @@ function App() {
       const historyItem: HistoryItem = {
         id: uuidv4(),
         timestamp: Date.now(),
-        request: { ...request }
+        request: { ...request },
+        folderName: activeTab.folderName
       };
       setHistory([historyItem, ...history].slice(0, 50)); // Keep last 50
     } catch (e) {
@@ -190,13 +191,35 @@ function App() {
   };
 
   const loadHistoryItem = (item: HistoryItem) => {
-    const existingTab = tabs.find(t => 
-      t.request.url === item.request.url && 
-      t.request.method === item.request.method && 
-      !t.request.name // Ensure it's not a named saved request we are confusing it with
-    );
+    let existingTab;
+    
+    if (item.folderName && item.request.name) {
+      // Saved request: find by name + folder
+      existingTab = tabs.find(t =>
+        t.request.name === item.request.name &&
+        t.folderName === item.folderName
+      );
+    } else {
+      // Regular request: find by URL + method
+      existingTab = tabs.find(t =>
+        t.request.url === item.request.url &&
+        t.request.method === item.request.method &&
+        !t.request.name
+      );
+    }
+
     if (existingTab) {
       setActiveTabId(existingTab.id);
+    } else if (item.folderName && item.request.name) {
+      // Re-open as a saved request tab
+      const newTab: TabData = {
+        id: uuidv4(),
+        request: { ...item.request, id: uuidv4() },
+        loading: false,
+        folderName: item.folderName
+      };
+      setTabs([...tabs, newTab]);
+      setActiveTabId(newTab.id);
     } else {
       addNewTab({ ...item.request, id: uuidv4() });
     }
@@ -241,11 +264,18 @@ function App() {
   };
 
   const loadSavedRequest = (req: SavedRequest) => {
-    const existingTab = tabs.find(t => t.request.name === req.name);
+    const existingTab = tabs.find(t => t.request.name === req.name && t.folderName === req.folderName);
     if (existingTab) {
       setActiveTabId(existingTab.id);
     } else {
-      addNewTab({ ...req.request, id: uuidv4() });
+      const newTab: TabData = {
+        id: uuidv4(),
+        request: { ...req.request, id: uuidv4() },
+        loading: false,
+        folderName: req.folderName
+      };
+      setTabs([...tabs, newTab]);
+      setActiveTabId(newTab.id);
     }
   };
 
@@ -308,8 +338,10 @@ function App() {
           {sidebarTab === 'history' && history.map(item => (
             <div key={item.id} className="sidebar-item" onClick={() => loadHistoryItem(item)}>
               <span className={`method-badge ${item.request.method}`}>{item.request.method}</span>
-              <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {item.request.url || t(language, 'untitledReq')}
+              <span style={{ wordBreak: 'break-all', fontSize: '0.85em' }}>
+                {item.folderName && item.request.name
+                  ? `${item.folderName}-${item.request.name}`
+                  : (item.request.url || t(language, 'untitledReq'))}
               </span>
             </div>
           ))}
@@ -370,8 +402,12 @@ function App() {
               <span className={`method-badge ${tab.request.method}`} style={{ minWidth: '35px' }}>
                 {tab.request.method}
               </span>
-              <span style={{ maxWidth: '120px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {tab.request.url || t(language, 'untitledReq')}
+              <span style={tab.folderName && tab.request.name
+                  ? { whiteSpace: 'nowrap' }
+                  : { maxWidth: '120px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {tab.folderName && tab.request.name
+                  ? `${tab.folderName}-${tab.request.name}`
+                  : (tab.request.url || t(language, 'untitledReq'))}
               </span>
               <button className="close-btn" onClick={(e) => closeTab(e, tab.id)}>
                 <X size={14} />

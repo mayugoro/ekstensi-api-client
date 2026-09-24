@@ -38,12 +38,14 @@ export interface TabData {
   request: RequestConfig;
   response?: ResponseDetails;
   loading: boolean;
+  folderName?: string;
 }
 
 export interface HistoryItem {
   id: string;
   timestamp: number;
   request: RequestConfig;
+  folderName?: string;
 }
 
 export interface SavedRequest {
