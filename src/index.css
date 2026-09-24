@@ -88,11 +88,14 @@ body {
   overflow: hidden;
   user-select: none;
   -webkit-user-select: none;
+  font-size: 16px;
 }
 
-input, select, textarea {
+input, select, textarea, button {
   user-select: text;
   -webkit-user-select: text;
+  font-family: inherit;
+  font-size: inherit;
 }
 
 /* Layout */
