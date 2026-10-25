@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import type { RequestConfig, TabData, HistoryItem, HttpMethod, AppTheme, SavedRequest } from './types';
 import { createEmptyRequest, parseUrlAndParams, t } from './utils';
@@ -24,6 +24,9 @@ function App() {
   const [saveFolderName, setSaveFolderName] = useState('');
   const [saveRequestName, setSaveRequestName] = useState('');
   const [saveError, setSaveError] = useState('');
+  const saveRequestInputRef = useRef<HTMLInputElement>(null);
+  const saveFolderInputRef = useRef<HTMLInputElement>(null);
+  const tabsHeaderRef = useRef<HTMLDivElement>(null);
   
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
   const [deleteTarget, setDeleteTarget] = useState<SavedRequest | null>(null);
@@ -100,6 +103,23 @@ function App() {
   }, [fontSize]);
 
   useEffect(() => {
+    const el = tabsHeaderRef.current;
+    if (!el) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      if (e.deltaY !== 0) {
+        e.preventDefault();
+        el.scrollLeft += e.deltaY;
+      }
+    };
+
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', handleWheel);
+    };
+  }, []);
+
+  useEffect(() => {
     // Save to storage
     if (tabs.length > 0) {
       chrome.storage?.local.set({ tabs, activeTabId, history, theme, savedRequests, fontFamily, fontSize, language });
@@ -112,8 +132,11 @@ function App() {
       request: request || createEmptyRequest(),
       loading: false
     };
-    setTabs([...tabs, newTab]);
+    setTabs([newTab, ...tabs]);
     setActiveTabId(newTab.id);
+    if (tabsHeaderRef.current) {
+      tabsHeaderRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+    }
   };
 
   const closeTab = (e: React.MouseEvent, id: string) => {
@@ -441,31 +464,33 @@ function App() {
 
       {/* Main Workspace */}
       <div className="workspace">
-        <div className="tabs-header">
-          {tabs.map(tab => (
-            <div 
-              key={tab.id} 
-              className={`tab ${activeTabId === tab.id ? 'active' : ''}`}
-              onClick={() => setActiveTabId(tab.id)}
-            >
-              <span className={`method-badge ${tab.request.method}`} style={{ minWidth: '35px' }}>
-                {tab.request.method}
-              </span>
-              <span style={tab.folderName && tab.request.name
-                  ? { whiteSpace: 'nowrap' }
-                  : { maxWidth: '120px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {tab.folderName && tab.request.name
-                  ? `${tab.folderName}-${tab.request.name}`
-                  : (tab.request.url || t(language, 'untitledReq'))}
-              </span>
-              <button className="close-btn" onClick={(e) => closeTab(e, tab.id)}>
-                <X size={14} />
-              </button>
-            </div>
-          ))}
-          <button className="new-tab-btn" onClick={() => addNewTab()}>
+        <div className="tabs-bar-container">
+          <button className="new-tab-btn" onClick={() => addNewTab()} title={t(language, 'newTab')}>
             <Plus size={18} />
           </button>
+          <div className="tabs-header" ref={tabsHeaderRef}>
+            {tabs.map(tab => (
+              <div 
+                key={tab.id} 
+                className={`tab ${activeTabId === tab.id ? 'active' : ''}`}
+                onClick={() => setActiveTabId(tab.id)}
+              >
+                <span className={`method-badge ${tab.request.method}`} style={{ minWidth: '35px' }}>
+                  {tab.request.method}
+                </span>
+                <span style={tab.folderName && tab.request.name
+                    ? { whiteSpace: 'nowrap' }
+                    : { maxWidth: '120px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {tab.folderName && tab.request.name
+                    ? `${tab.folderName}-${tab.request.name}`
+                    : (tab.request.url || t(language, 'untitledReq'))}
+                </span>
+                <button className="close-btn" onClick={(e) => closeTab(e, tab.id)}>
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
 
         {activeTab && (
@@ -567,21 +592,46 @@ function App() {
             <div>
               <label style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{t(language, 'reqName')}</label>
               <input 
+                ref={saveRequestInputRef}
                 type="text" 
                 className="modal-input" 
+                autoFocus
+                style={{ textTransform: 'uppercase' }}
                 placeholder="e.g., Get User Profile" 
                 value={saveRequestName}
-                onChange={(e) => setSaveRequestName(e.target.value)}
+                onChange={(e) => setSaveRequestName(e.target.value.toUpperCase())}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (saveRequestName.trim() && saveFolderName.trim()) {
+                      handleSaveRequest();
+                    } else if (saveRequestName.trim()) {
+                      saveFolderInputRef.current?.focus();
+                    }
+                  }
+                }}
               />
             </div>
             <div>
               <label style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{t(language, 'folderCol')}</label>
               <input 
+                ref={saveFolderInputRef}
                 type="text" 
                 className="modal-input" 
+                style={{ textTransform: 'uppercase' }}
                 placeholder="e.g., Auth API" 
                 value={saveFolderName}
-                onChange={(e) => setSaveFolderName(e.target.value)}
+                onChange={(e) => setSaveFolderName(e.target.value.toUpperCase())}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (saveRequestName.trim() && saveFolderName.trim()) {
+                      handleSaveRequest();
+                    } else if (!saveRequestName.trim()) {
+                      saveRequestInputRef.current?.focus();
+                    }
+                  }
+                }}
                 list="folder-suggestions"
               />
               <datalist id="folder-suggestions">

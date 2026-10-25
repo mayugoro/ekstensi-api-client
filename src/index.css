@@ -298,12 +298,41 @@ input, select, textarea, button {
 }
 
 /* Tabs */
-.tabs-header {
+.tabs-bar-container {
   display: flex;
   background-color: var(--bg-panel);
   border-bottom: 1px solid var(--border-color);
-  overflow-x: auto;
   height: 46px;
+  overflow: hidden;
+  align-items: stretch;
+}
+.tabs-bar-container .new-tab-btn {
+  flex-shrink: 0;
+  width: 44px;
+  padding: 0;
+  border-right: 1px solid var(--border-color);
+  background-color: var(--bg-panel);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s, color 0.15s;
+}
+.tabs-bar-container .new-tab-btn:hover {
+  background-color: var(--bg-dark);
+  color: var(--text-primary);
+}
+.tabs-header {
+  flex: 1;
+  display: flex;
+  overflow-x: auto;
+  height: 100%;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE / Edge */
+}
+.tabs-header::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Chromium */
 }
 .tab {
   padding: 0 1.5rem;
@@ -315,6 +344,7 @@ input, select, textarea, button {
   align-items: center;
   gap: 0.5rem;
   border-bottom: 2px solid transparent;
+  flex-shrink: 0;
 }
 .tab.active {
   background-color: var(--bg-dark);
@@ -330,19 +360,6 @@ input, select, textarea, button {
   font-size: 1rem;
 }
 .tab .close-btn:hover {
-  color: var(--text-primary);
-}
-.new-tab-btn {
-  padding: 0 1rem;
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.new-tab-btn:hover {
   color: var(--text-primary);
 }
 
