@@ -4,7 +4,8 @@ import type { RequestConfig, TabData, HistoryItem, HttpMethod, AppTheme, SavedRe
 import { createEmptyRequest, parseUrlAndParams, t } from './utils';
 import { RequestEditor } from './components/RequestEditor';
 import { ResponseEditor } from './components/ResponseEditor';
-import { Clock, Plus, X, Trash2, Settings, Save, Folder, Menu, Search, Key, Copy, Check, Download, Upload } from 'lucide-react';
+import { Clock, Plus, X, Trash2, Settings, Save, Folder, Menu, Search, Key, Copy, Check, Upload, Lock, Eye, EyeOff } from 'lucide-react';
+import { encryptData, decryptData, isEncryptedBackup, type EncryptedPayload } from './crypto';
 
 function App() {
   const [tabs, setTabs] = useState<TabData[]>([]);
@@ -78,6 +79,19 @@ function App() {
   const [backupStatusMsg, setBackupStatusMsg] = useState<{ text: string; isError?: boolean } | null>(null);
   const importFileInputRef = useRef<HTMLInputElement>(null);
 
+  // Modal State untuk Export & Import Berbasis Kunci / Password
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [exportKey, setExportKey] = useState('');
+  const [exportConfirmKey, setExportConfirmKey] = useState('');
+  const [showExportKey, setShowExportKey] = useState(false);
+  const [exportError, setExportError] = useState('');
+
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importKey, setImportKey] = useState('');
+  const [showImportKey, setShowImportKey] = useState(false);
+  const [importError, setImportError] = useState('');
+  const [pendingEncryptedData, setPendingEncryptedData] = useState<EncryptedPayload | null>(null);
+
   const openSettings = () => {
     setTempTheme(theme);
     setTempFontFamily(fontFamily);
@@ -96,7 +110,24 @@ function App() {
     setIsSettingsOpen(false);
   };
 
-  const handleExportData = () => {
+  const handleOpenExportModal = () => {
+    setExportKey('');
+    setExportConfirmKey('');
+    setExportError('');
+    setShowExportKey(false);
+    setIsExportModalOpen(true);
+  };
+
+  const confirmEncryptedExport = async () => {
+    if (!exportKey.trim()) {
+      setExportError(language === 'id' ? 'Kunci enkripsi tidak boleh kosong' : 'Encryption key cannot be empty');
+      return;
+    }
+    if (exportKey !== exportConfirmKey) {
+      setExportError(language === 'id' ? 'Konfirmasi kunci tidak cocok' : 'Keys do not match');
+      return;
+    }
+
     try {
       const backupData = {
         version: 1,
@@ -115,7 +146,10 @@ function App() {
         activeTabId: activeTabId || ''
       };
 
-      const jsonString = JSON.stringify(backupData, null, 2);
+      // Enkripsi menggunakan AES-GCM 256-bit dengan kunci pengguna
+      const encryptedPayload = await encryptData(backupData, exportKey);
+
+      const jsonString = JSON.stringify(encryptedPayload, null, 2);
       const blob = new Blob([jsonString], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -123,24 +157,21 @@ function App() {
       const dateStr = now.toISOString().slice(0, 10);
       const timeStr = `${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
       a.href = url;
-      a.download = `api-client-backup-${dateStr}_${timeStr}.json`;
+      a.download = `api-client-backup-${dateStr}_${timeStr}.enc.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
+      setIsExportModalOpen(false);
       setBackupStatusMsg({
         text: language === 'id' 
-          ? `Data berhasil diexport (${savedRequests.length} koleksi, ${vaultKeys.length} key vault, ${history.length} riwayat)` 
-          : `Data successfully exported (${savedRequests.length} collections, ${vaultKeys.length} vault keys, ${history.length} history)`
+          ? `Data berhasil dienkripsi (AES-256) & diexport (${savedRequests.length} koleksi, ${vaultKeys.length} vault key)!`
+          : `Data successfully encrypted (AES-256) & exported!`
       });
       setTimeout(() => setBackupStatusMsg(null), 4000);
     } catch (e: any) {
-      setBackupStatusMsg({
-        text: language === 'id' ? `Gagal mengexport data: ${e?.message || 'Error tidak diketahui'}` : `Export failed: ${e?.message || 'Unknown error'}`,
-        isError: true
-      });
-      setTimeout(() => setBackupStatusMsg(null), 4000);
+      setExportError(e?.message || 'Gagal mengenkripsi data');
     }
   };
 
@@ -151,108 +182,123 @@ function App() {
     }
   };
 
+  // Helper untuk menerapkan data hasil dekripsi / pembacaan file
+  const applyRestoredData = (data: any) => {
+    let importedRequests = 0;
+    let importedVault = 0;
+    let importedHistory = 0;
+
+    // 1. Merge savedRequests
+    if (Array.isArray(data.savedRequests)) {
+      setSavedRequests((prev) => {
+        const map = new Map(prev.map(item => [item.id, item]));
+        for (const item of data.savedRequests) {
+          if (item && item.id) {
+            map.set(item.id, item);
+            importedRequests++;
+          }
+        }
+        return Array.from(map.values());
+      });
+    }
+
+    // 2. Merge vaultKeys
+    if (Array.isArray(data.vaultKeys)) {
+      setVaultKeys((prev) => {
+        const map = new Map(prev.map(k => [k.id, k]));
+        for (const k of data.vaultKeys) {
+          if (k && k.id) {
+            map.set(k.id, k);
+            importedVault++;
+          }
+        }
+        return Array.from(map.values());
+      });
+    }
+
+    // 3. Merge history
+    if (Array.isArray(data.history)) {
+      setHistory((prev) => {
+        const map = new Map(prev.map(h => [h.id, h]));
+        for (const h of data.history) {
+          if (h && h.id) {
+            map.set(h.id, h);
+            importedHistory++;
+          }
+        }
+        return Array.from(map.values());
+      });
+    }
+
+    // 4. Restore settings if present
+    if (data.settings && typeof data.settings === 'object') {
+      if (data.settings.theme) {
+        setTheme(data.settings.theme);
+        setTempTheme(data.settings.theme);
+      }
+      if (data.settings.fontFamily) {
+        setFontFamily(data.settings.fontFamily);
+        setTempFontFamily(data.settings.fontFamily);
+      }
+      if (data.settings.fontSize) {
+        setFontSize(data.settings.fontSize);
+        setTempFontSize(data.settings.fontSize);
+      }
+      if (data.settings.language) {
+        setLanguage(data.settings.language);
+        setTempLanguage(data.settings.language);
+      }
+    }
+
+    // 5. Restore tabs if current tabs are empty or fresh
+    if (Array.isArray(data.tabs) && data.tabs.length > 0) {
+      setTabs((prev) => {
+        if (prev.length <= 1 && (!prev[0] || !prev[0].request.url)) {
+          if (data.activeTabId) setActiveTabId(data.activeTabId);
+          return data.tabs;
+        }
+        return prev;
+      });
+    }
+
+    setBackupStatusMsg({
+      text: language === 'id' 
+        ? `Berhasil mengimport data (${importedRequests} koleksi, ${importedVault} key vault, ${importedHistory} riwayat)!`
+        : `Successfully imported data (${importedRequests} collections, ${importedVault} vault keys, ${importedHistory} history)!`
+    });
+    setTimeout(() => setBackupStatusMsg(null), 5000);
+  };
+
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const text = event.target?.result as string;
-        const data = JSON.parse(text);
+        const parsed = JSON.parse(text);
 
-        if (!data || typeof data !== 'object') {
+        if (!parsed || typeof parsed !== 'object') {
           setBackupStatusMsg({
-            text: language === 'id' ? 'File backup tidak valid: format bukan objek JSON' : 'Invalid backup file: not a JSON object',
+            text: language === 'id' ? 'File backup tidak valid: format bukan JSON' : 'Invalid backup file: not JSON',
             isError: true
           });
           setTimeout(() => setBackupStatusMsg(null), 4000);
           return;
         }
 
-        let importedRequests = 0;
-        let importedVault = 0;
-        let importedHistory = 0;
-
-        // 1. Merge savedRequests
-        if (Array.isArray(data.savedRequests)) {
-          setSavedRequests((prev) => {
-            const map = new Map(prev.map(item => [item.id, item]));
-            for (const item of data.savedRequests) {
-              if (item && item.id) {
-                map.set(item.id, item);
-                importedRequests++;
-              }
-            }
-            return Array.from(map.values());
-          });
+        // Periksa apakah file adalah format backup terenkripsi
+        if (isEncryptedBackup(parsed)) {
+          setPendingEncryptedData(parsed);
+          setImportKey('');
+          setImportError('');
+          setShowImportKey(false);
+          setIsImportModalOpen(true);
+        } else {
+          // File backup standar yang belum terenkripsi
+          applyRestoredData(parsed);
         }
-
-        // 2. Merge vaultKeys
-        if (Array.isArray(data.vaultKeys)) {
-          setVaultKeys((prev) => {
-            const map = new Map(prev.map(k => [k.id, k]));
-            for (const k of data.vaultKeys) {
-              if (k && k.id) {
-                map.set(k.id, k);
-                importedVault++;
-              }
-            }
-            return Array.from(map.values());
-          });
-        }
-
-        // 3. Merge history
-        if (Array.isArray(data.history)) {
-          setHistory((prev) => {
-            const map = new Map(prev.map(h => [h.id, h]));
-            for (const h of data.history) {
-              if (h && h.id) {
-                map.set(h.id, h);
-                importedHistory++;
-              }
-            }
-            return Array.from(map.values());
-          });
-        }
-
-        // 4. Restore settings if present
-        if (data.settings && typeof data.settings === 'object') {
-          if (data.settings.theme) {
-            setTheme(data.settings.theme);
-            setTempTheme(data.settings.theme);
-          }
-          if (data.settings.fontFamily) {
-            setFontFamily(data.settings.fontFamily);
-            setTempFontFamily(data.settings.fontFamily);
-          }
-          if (data.settings.fontSize) {
-            setFontSize(data.settings.fontSize);
-            setTempFontSize(data.settings.fontSize);
-          }
-          if (data.settings.language) {
-            setLanguage(data.settings.language);
-            setTempLanguage(data.settings.language);
-          }
-        }
-
-        // 5. Restore tabs if current tabs are empty or fresh
-        if (Array.isArray(data.tabs) && data.tabs.length > 0) {
-          setTabs((prev) => {
-            if (prev.length <= 1 && (!prev[0] || !prev[0].request.url)) {
-              if (data.activeTabId) setActiveTabId(data.activeTabId);
-              return data.tabs;
-            }
-            return prev;
-          });
-        }
-
-        setBackupStatusMsg({
-          text: language === 'id' 
-            ? `Berhasil mengimport data (${importedRequests} koleksi, ${importedVault} key vault, ${importedHistory} riwayat)!`
-            : `Successfully imported data (${importedRequests} collections, ${importedVault} vault keys, ${importedHistory} history)!`
-        });
-        setTimeout(() => setBackupStatusMsg(null), 5000);
       } catch (err: any) {
         setBackupStatusMsg({
           text: language === 'id' ? `Gagal membaca file: ${err?.message || 'Format JSON rusak'}` : `Failed to read file: ${err?.message || 'Corrupted JSON'}`,
@@ -262,6 +308,24 @@ function App() {
       }
     };
     reader.readAsText(file);
+  };
+
+  const confirmDecryptAndImport = async () => {
+    if (!importKey.trim()) {
+      setImportError(language === 'id' ? 'Masukkan kunci enkripsi untuk membuka file' : 'Enter encryption key to unlock file');
+      return;
+    }
+    if (!pendingEncryptedData) return;
+
+    try {
+      // Mendekripsi data dengan Web Crypto API (AES-GCM-256)
+      const decrypted = await decryptData(pendingEncryptedData, importKey);
+      applyRestoredData(decrypted);
+      setIsImportModalOpen(false);
+      setPendingEncryptedData(null);
+    } catch (err: any) {
+      setImportError(language === 'id' ? 'Kunci enkripsi salah atau data telah diubah! Akses ditolak.' : 'Incorrect encryption key or corrupted data! Access denied.');
+    }
   };
 
   useEffect(() => {
@@ -1133,11 +1197,11 @@ function App() {
                 <button 
                   type="button"
                   className="btn-secondary" 
-                  onClick={handleExportData} 
+                  onClick={handleOpenExportModal} 
                   style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0.45rem 0.85rem' }}
-                  title="Export semua koleksi, riwayat, key vault, & pengaturan ke file JSON"
+                  title="Export data terenkripsi AES-256 menggunakan kunci rahasia"
                 >
-                  <Download size={15} />
+                  <Lock size={14} style={{ color: '#ffd700' }} />
                   <span>Export</span>
                 </button>
                 <button 
@@ -1145,7 +1209,7 @@ function App() {
                   className="btn-secondary" 
                   onClick={handleTriggerImport} 
                   style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0.45rem 0.85rem' }}
-                  title="Import data dari file JSON backup"
+                  title="Import data dari file backup terenkripsi"
                 >
                   <Upload size={15} />
                   <span>Import</span>
@@ -1154,12 +1218,216 @@ function App() {
                   type="file" 
                   ref={importFileInputRef} 
                   onChange={handleImportFile} 
-                  accept=".json,application/json" 
+                  accept=".json,.enc,application/json" 
                   style={{ display: 'none' }} 
                 />
               </div>
 
               <button className="btn-primary" onClick={saveSettings}>{t(language, 'save')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Export Encrypted Modal */}
+      {isExportModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsExportModalOpen(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ width: '430px', maxWidth: '92vw' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1rem' }}>
+              <div style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #ffd700 0%, #ffae00 100%)',
+                boxShadow: '0 0 10px rgba(255, 215, 0, 0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#1a1a1a',
+                flexShrink: 0
+              }}>
+                <Lock size={16} strokeWidth={2.4} />
+              </div>
+              <div className="modal-title" style={{ margin: 0 }}>
+                {language === 'id' ? 'Export Data Terenkripsi' : 'Export Encrypted Data'}
+              </div>
+            </div>
+
+            <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.2rem', lineHeight: '1.4' }}>
+              {language === 'id' 
+                ? 'File backup akan dienkripsi dengan standar militer AES-256. Hanya pengguna yang memiliki kunci ini yang dapat mengimpor data.'
+                : 'Backup file will be encrypted with AES-256. Only users with this key can import the data.'}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.2rem' }}>
+              <div>
+                <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
+                  {language === 'id' ? 'Kunci Enkripsi (Password)' : 'Encryption Key (Password)'}
+                </label>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <input 
+                    type={showExportKey ? 'text' : 'password'}
+                    className="modal-input" 
+                    placeholder={language === 'id' ? 'Masukkan kunci rahasia...' : 'Enter secret key...'}
+                    value={exportKey}
+                    onChange={(e) => { setExportKey(e.target.value); setExportError(''); }}
+                    autoFocus
+                    style={{ paddingRight: '36px', width: '100%' }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') confirmEncryptedExport();
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowExportKey(!showExportKey)}
+                    style={{
+                      position: 'absolute',
+                      right: '8px',
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center'
+                    }}
+                    title={showExportKey ? 'Sembunyikan' : 'Tampilkan'}
+                  >
+                    {showExportKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
+                  {language === 'id' ? 'Konfirmasi Kunci Enkripsi' : 'Confirm Encryption Key'}
+                </label>
+                <input 
+                  type={showExportKey ? 'text' : 'password'}
+                  className="modal-input" 
+                  placeholder={language === 'id' ? 'Ketik ulang kunci rahasia...' : 'Re-enter secret key...'}
+                  value={exportConfirmKey}
+                  onChange={(e) => { setExportConfirmKey(e.target.value); setExportError(''); }}
+                  style={{ width: '100%' }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') confirmEncryptedExport();
+                  }}
+                />
+              </div>
+            </div>
+
+            {exportError && (
+              <div style={{ color: 'var(--error-color)', fontSize: '0.85rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <X size={14} />
+                <span>{exportError}</span>
+              </div>
+            )}
+
+            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button className="btn-secondary" onClick={() => setIsExportModalOpen(false)}>
+                {t(language, 'cancel')}
+              </button>
+              <button 
+                className="btn-primary" 
+                onClick={confirmEncryptedExport}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Lock size={14} />
+                <span>{language === 'id' ? 'Kunci & Export' : 'Lock & Export'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import Decrypt Modal */}
+      {isImportModalOpen && (
+        <div className="modal-overlay" onClick={() => { setIsImportModalOpen(false); setPendingEncryptedData(null); }}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ width: '430px', maxWidth: '92vw' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1rem' }}>
+              <div style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #ffd700 0%, #ffae00 100%)',
+                boxShadow: '0 0 10px rgba(255, 215, 0, 0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#1a1a1a',
+                flexShrink: 0
+              }}>
+                <Key size={16} strokeWidth={2.4} />
+              </div>
+              <div className="modal-title" style={{ margin: 0 }}>
+                {language === 'id' ? 'Buka Data Terenkripsi' : 'Decrypt Encrypted Data'}
+              </div>
+            </div>
+
+            <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.2rem', lineHeight: '1.4' }}>
+              {language === 'id' 
+                ? 'File backup ini dilindungi dengan enkripsi AES-256. Masukkan kunci rahasia untuk mendekripsi dan memulihkan data.'
+                : 'This backup is encrypted with AES-256. Enter the secret key to decrypt and restore data.'}
+            </div>
+
+            <div style={{ marginBottom: '1.2rem' }}>
+              <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
+                {language === 'id' ? 'Kunci Enkripsi (Password)' : 'Encryption Key (Password)'}
+              </label>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <input 
+                  type={showImportKey ? 'text' : 'password'}
+                  className="modal-input" 
+                  placeholder={language === 'id' ? 'Masukkan kunci rahasia file...' : 'Enter file secret key...'}
+                  value={importKey}
+                  onChange={(e) => { setImportKey(e.target.value); setImportError(''); }}
+                  autoFocus
+                  style={{ paddingRight: '36px', width: '100%' }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') confirmDecryptAndImport();
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowImportKey(!showImportKey)}
+                  style={{
+                    position: 'absolute',
+                    right: '8px',
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                  title={showImportKey ? 'Sembunyikan' : 'Tampilkan'}
+                >
+                  {showImportKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+
+            {importError && (
+              <div style={{ color: 'var(--error-color)', fontSize: '0.85rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <X size={14} />
+                <span>{importError}</span>
+              </div>
+            )}
+
+            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button 
+                className="btn-secondary" 
+                onClick={() => { setIsImportModalOpen(false); setPendingEncryptedData(null); }}
+              >
+                {t(language, 'cancel')}
+              </button>
+              <button 
+                className="btn-primary" 
+                onClick={confirmDecryptAndImport}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Key size={14} />
+                <span>{language === 'id' ? 'Buka & Import' : 'Decrypt & Import'}</span>
+              </button>
             </div>
           </div>
         </div>
