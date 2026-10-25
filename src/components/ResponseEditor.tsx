@@ -71,8 +71,19 @@ export const ResponseEditor: React.FC<Props> = ({ response, loading, language })
   const triggerScrollToActive = () => {
     setTimeout(() => {
       const activeEl = document.getElementById('active-response-match');
-      if (activeEl) {
-        activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      const viewerEl = jsonViewerRef.current;
+      if (activeEl && viewerEl) {
+        const viewerRect = viewerEl.getBoundingClientRect();
+        const activeRect = activeEl.getBoundingClientRect();
+        const currentScrollTop = viewerEl.scrollTop;
+        
+        // Menghitung posisi target agar tepat berada di tengah-tengah tinggi kotak respon
+        const targetScrollTop = currentScrollTop + (activeRect.top - viewerRect.top) - (viewerRect.height / 2) + (activeRect.height / 2);
+        
+        viewerEl.scrollTo({
+          top: targetScrollTop,
+          behavior: 'smooth'
+        });
       }
     }, 40);
   };
