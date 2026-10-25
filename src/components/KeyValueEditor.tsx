@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import type { KeyValuePair } from '../types';
+import type { KeyValuePair, UserVaultKey } from '../types';
 import { createEmptyKV } from '../utils';
-import { Trash2, Save, Check, X } from 'lucide-react';
+import { Trash2, Save, Check, X, Lock, Search } from 'lucide-react';
 
 const ALL_HEADER_KEYS = [
   'Accept', 'Accept-Charset', 'Accept-Encoding', 'Accept-Language',
@@ -19,13 +19,18 @@ interface Props {
   onChange: (items: KeyValuePair[]) => void;
   type?: 'params' | 'headers';
   onSaveToVault?: (field: string, value: string, note: string) => void;
+  vaultKeys?: UserVaultKey[];
   language?: string;
 }
 
-export const KeyValueEditor: React.FC<Props> = ({ items, onChange, type = 'params', onSaveToVault, language = 'en' }) => {
+export const KeyValueEditor: React.FC<Props> = ({ items, onChange, type = 'params', onSaveToVault, vaultKeys = [], language = 'en' }) => {
   const [pendingSaveItem, setPendingSaveItem] = useState<KeyValuePair | null>(null);
   const [noteInput, setNoteInput] = useState('');
   const [savedItemId, setSavedItemId] = useState<string | null>(null);
+  
+  // State untuk modal gembok (picker value dari vault)
+  const [activePickerRowId, setActivePickerRowId] = useState<string | null>(null);
+  const [pickerSearchQuery, setPickerSearchQuery] = useState('');
 
   const handleItemChange = (id: string, field: keyof KeyValuePair, value: any) => {
     const newItems = items.map(item => 
@@ -58,6 +63,22 @@ export const KeyValueEditor: React.FC<Props> = ({ items, onChange, type = 'param
     }, 2000);
   };
 
+  const handleSelectVaultKey = (vaultItem: UserVaultKey) => {
+    if (!activePickerRowId) return;
+    const newItems = items.map(item => {
+      if (item.id === activePickerRowId) {
+        return {
+          ...item,
+          value: vaultItem.value,
+          key: item.key.trim() ? item.key : vaultItem.field
+        };
+      }
+      return item;
+    });
+    onChange(newItems);
+    setActivePickerRowId(null);
+  };
+
   const getHeaderValueSuggestions = (key: string): string[] => {
     const k = key.toLowerCase();
     if (k === 'authorization') return ['Bearer ', 'Basic ', 'Digest ', 'OAuth ', 'AWS4-HMAC-SHA256 '];
@@ -75,7 +96,7 @@ export const KeyValueEditor: React.FC<Props> = ({ items, onChange, type = 'param
             <th style={{ width: '40px' }}></th>
             <th style={{ width: '30%' }}>Key</th>
             <th>Value</th>
-            <th style={{ width: onSaveToVault ? '72px' : '40px' }}></th>
+            <th style={{ width: onSaveToVault ? '96px' : '40px' }}></th>
           </tr>
         </thead>
         <tbody>
@@ -120,7 +141,7 @@ export const KeyValueEditor: React.FC<Props> = ({ items, onChange, type = 'param
                   onChange={(e) => handleItemChange(item.id, 'value', e.target.value)}
                 />
               </td>
-              <td className="kv-action" style={{ width: onSaveToVault ? '72px' : '40px' }}>
+              <td className="kv-action" style={{ width: onSaveToVault ? '96px' : '40px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
                   {onSaveToVault && (
                     <button
@@ -150,6 +171,36 @@ export const KeyValueEditor: React.FC<Props> = ({ items, onChange, type = 'param
                       }}
                     >
                       {savedItemId === item.id ? <Check size={16} strokeWidth={2.5} /> : <Save size={16} />}
+                    </button>
+                  )}
+                  {onSaveToVault && (
+                    <button
+                      className="btn-secondary"
+                      style={{
+                        padding: '0.25rem',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: '#ffd700',
+                        background: 'transparent',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        transition: 'transform 0.15s, color 0.15s'
+                      }}
+                      title={language === 'id' ? 'Ambil value dari Key Vault (Gembok)' : 'Pick value from Key Vault (Lock)'}
+                      onClick={() => {
+                        setActivePickerRowId(item.id);
+                        setPickerSearchQuery('');
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'scale(1.2)';
+                        e.currentTarget.style.color = '#ffe57f';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'scale(1)';
+                        e.currentTarget.style.color = '#ffd700';
+                      }}
+                    >
+                      <Lock size={15} strokeWidth={2.4} />
                     </button>
                   )}
                   <button 
@@ -291,6 +342,173 @@ export const KeyValueEditor: React.FC<Props> = ({ items, onChange, type = 'param
               >
                 <Save size={14} />
                 <span>{language === 'id' ? 'Ya, Simpan' : 'Save'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Picker Gembok: Ambil Value dari Key Vault */}
+      {activePickerRowId && (
+        <div className="modal-overlay" onClick={() => setActivePickerRowId(null)}>
+          <div 
+            className="modal-content" 
+            onClick={(e) => e.stopPropagation()} 
+            style={{ width: '560px', maxWidth: '92vw', maxHeight: '82vh', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}
+          >
+            {/* Header Modal */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.6rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #ffd700 0%, #ffae00 100%)',
+                  boxShadow: '0 0 10px rgba(255, 215, 0, 0.5)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#1a1a1a'
+                }}>
+                  <Lock size={15} strokeWidth={2.5} />
+                </div>
+                <div>
+                  <div style={{ fontWeight: 'bold', fontSize: '1.05rem', color: 'var(--text-primary)' }}>
+                    {language === 'id' ? 'Pilih Value dari Key Vault' : 'Select Value from Key Vault'}
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                    {language === 'id' 
+                      ? 'Pilih salah satu item di bawah untuk mengisi otomatis value pada baris ini.' 
+                      : 'Choose an item below to automatically fill the value in this row.'}
+                  </div>
+                </div>
+              </div>
+              <X 
+                size={18} 
+                style={{ cursor: 'pointer', color: 'var(--text-secondary)' }} 
+                onClick={() => setActivePickerRowId(null)} 
+              />
+            </div>
+
+            {/* Filter Search jika > 2 items */}
+            {vaultKeys && vaultKeys.length > 2 && (
+              <div style={{ position: 'relative' }}>
+                <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                <input
+                  type="text"
+                  className="modal-input"
+                  placeholder={language === 'id' ? 'Cari field, value, atau note...' : 'Filter field, value, or note...'}
+                  value={pickerSearchQuery}
+                  autoFocus
+                  onChange={(e) => setPickerSearchQuery(e.target.value)}
+                  style={{ paddingLeft: '32px', fontSize: '0.85rem' }}
+                />
+              </div>
+            )}
+
+            {/* Daftar Pilihan Key / Value */}
+            <div style={{ 
+              flex: 1, 
+              overflowY: 'auto', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: '6px',
+              maxHeight: '350px' 
+            }}>
+              {(!vaultKeys || vaultKeys.length === 0) ? (
+                <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                  {language === 'id' 
+                    ? 'Belum ada key yang disimpan di Key Vault.' 
+                    : 'No saved keys found in Key Vault.'}
+                </div>
+              ) : (() => {
+                const query = pickerSearchQuery.trim().toLowerCase();
+                const filtered = query 
+                  ? vaultKeys.filter(k => 
+                      k.field.toLowerCase().includes(query) || 
+                      k.value.toLowerCase().includes(query) || 
+                      k.note.toLowerCase().includes(query)
+                    )
+                  : vaultKeys;
+
+                if (filtered.length === 0) {
+                  return (
+                    <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                      {language === 'id' ? 'Tidak ada hasil yang cocok.' : 'No matching items found.'}
+                    </div>
+                  );
+                }
+
+                return filtered.map(vk => (
+                  <div
+                    key={vk.id}
+                    onClick={() => handleSelectVaultKey(vk)}
+                    style={{
+                      padding: '0.65rem 0.85rem',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: 'var(--bg-input)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = '#ffd700';
+                      e.currentTarget.style.backgroundColor = 'var(--bg-hover)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--border-color)';
+                      e.currentTarget.style.backgroundColor = 'var(--bg-input)';
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ 
+                        fontWeight: 'bold', 
+                        fontFamily: 'monospace', 
+                        color: 'var(--accent-color)', 
+                        fontSize: '0.85rem' 
+                      }}>
+                        {vk.field}
+                      </span>
+                      {vk.note && (
+                        <span style={{ 
+                          fontSize: '0.75rem', 
+                          color: 'var(--text-secondary)',
+                          fontStyle: 'italic',
+                          maxWidth: '180px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          {vk.note}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ 
+                      fontFamily: 'monospace', 
+                      fontSize: '0.78rem', 
+                      color: 'var(--text-primary)',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      {vk.value}
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+
+            {/* Footer Modal */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '0.4rem', borderTop: '1px solid var(--border-color)' }}>
+              <button 
+                className="btn-secondary" 
+                onClick={() => setActivePickerRowId(null)}
+                style={{ padding: '0.45rem 1rem', fontSize: '0.85rem' }}
+              >
+                {language === 'id' ? 'Batal' : 'Cancel'}
               </button>
             </div>
           </div>

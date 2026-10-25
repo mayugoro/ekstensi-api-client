@@ -744,6 +744,7 @@ function App() {
                 isBlurred={isBlurred}
                 setIsBlurred={setIsBlurred}
                 onSaveToVault={handleSaveToVault}
+                vaultKeys={vaultKeys}
               />
               <ResponseEditor response={activeTab.response} loading={activeTab.loading} language={language} theme={theme} />
             </div>

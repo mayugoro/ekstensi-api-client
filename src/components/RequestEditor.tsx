@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
-import type { RequestConfig } from '../types';
+import React, { useState, useEffect } from 'react';
+import type { RequestConfig, UserVaultKey } from '../types';
 import { KeyValueEditor } from './KeyValueEditor';
 import { Eye, EyeOff, ClipboardPaste, Wand2, Filter } from 'lucide-react';
-import { useEffect } from 'react';
 import { t } from '../utils';
 import EditorModule from 'react-simple-code-editor';
 const Editor = (EditorModule as any).default || EditorModule;
@@ -17,9 +16,10 @@ interface Props {
   isBlurred: boolean;
   setIsBlurred: (v: boolean) => void;
   onSaveToVault?: (field: string, value: string, note: string) => void;
+  vaultKeys?: UserVaultKey[];
 }
 
-export const RequestEditor: React.FC<Props> = ({ request, onChange, language, isBlurred, setIsBlurred, onSaveToVault }) => {
+export const RequestEditor: React.FC<Props> = ({ request, onChange, language, isBlurred, setIsBlurred, onSaveToVault, vaultKeys }) => {
   const [activeTab, setActiveTab] = useState<'params'|'headers'|'body'|'auth'>('headers');
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [showFilter, setShowFilter] = useState(false);
@@ -153,6 +153,7 @@ export const RequestEditor: React.FC<Props> = ({ request, onChange, language, is
             onChange={(items) => onChange({ ...request, headers: items })} 
             type="headers"
             onSaveToVault={onSaveToVault}
+            vaultKeys={vaultKeys}
             language={language}
           />
         )}
