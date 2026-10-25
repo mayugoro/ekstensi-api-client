@@ -4,7 +4,7 @@ import type { RequestConfig, TabData, HistoryItem, HttpMethod, AppTheme, SavedRe
 import { createEmptyRequest, parseUrlAndParams, t } from './utils';
 import { RequestEditor } from './components/RequestEditor';
 import { ResponseEditor } from './components/ResponseEditor';
-import { Clock, Plus, X, Trash2, Settings, Save, Folder, Menu, Search, Key, Copy, Check } from 'lucide-react';
+import { Clock, Plus, X, Trash2, Settings, Save, Folder, Menu, Search, Key, Copy, Check, Download, Upload } from 'lucide-react';
 
 function App() {
   const [tabs, setTabs] = useState<TabData[]>([]);
@@ -75,12 +75,15 @@ function App() {
   const [tempFontFamily, setTempFontFamily] = useState('monospace');
   const [tempFontSize, setTempFontSize] = useState('50%');
   const [tempLanguage, setTempLanguage] = useState('en');
+  const [backupStatusMsg, setBackupStatusMsg] = useState<{ text: string; isError?: boolean } | null>(null);
+  const importFileInputRef = useRef<HTMLInputElement>(null);
 
   const openSettings = () => {
     setTempTheme(theme);
     setTempFontFamily(fontFamily);
     setTempFontSize(fontSize);
     setTempLanguage(language);
+    setBackupStatusMsg(null);
     setIsSettingsOpen(true);
   };
 
@@ -89,7 +92,176 @@ function App() {
     setFontFamily(tempFontFamily);
     setFontSize(tempFontSize);
     setLanguage(tempLanguage);
+    setBackupStatusMsg(null);
     setIsSettingsOpen(false);
+  };
+
+  const handleExportData = () => {
+    try {
+      const backupData = {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        appName: 'API Client',
+        savedRequests: savedRequests || [],
+        vaultKeys: vaultKeys || [],
+        history: history || [],
+        settings: {
+          theme,
+          fontFamily,
+          fontSize,
+          language
+        },
+        tabs: tabs || [],
+        activeTabId: activeTabId || ''
+      };
+
+      const jsonString = JSON.stringify(backupData, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const now = new Date();
+      const dateStr = now.toISOString().slice(0, 10);
+      const timeStr = `${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
+      a.href = url;
+      a.download = `api-client-backup-${dateStr}_${timeStr}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      setBackupStatusMsg({
+        text: language === 'id' 
+          ? `Data berhasil diexport (${savedRequests.length} koleksi, ${vaultKeys.length} key vault, ${history.length} riwayat)` 
+          : `Data successfully exported (${savedRequests.length} collections, ${vaultKeys.length} vault keys, ${history.length} history)`
+      });
+      setTimeout(() => setBackupStatusMsg(null), 4000);
+    } catch (e: any) {
+      setBackupStatusMsg({
+        text: language === 'id' ? `Gagal mengexport data: ${e?.message || 'Error tidak diketahui'}` : `Export failed: ${e?.message || 'Unknown error'}`,
+        isError: true
+      });
+      setTimeout(() => setBackupStatusMsg(null), 4000);
+    }
+  };
+
+  const handleTriggerImport = () => {
+    if (importFileInputRef.current) {
+      importFileInputRef.current.value = '';
+      importFileInputRef.current.click();
+    }
+  };
+
+  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const text = event.target?.result as string;
+        const data = JSON.parse(text);
+
+        if (!data || typeof data !== 'object') {
+          setBackupStatusMsg({
+            text: language === 'id' ? 'File backup tidak valid: format bukan objek JSON' : 'Invalid backup file: not a JSON object',
+            isError: true
+          });
+          setTimeout(() => setBackupStatusMsg(null), 4000);
+          return;
+        }
+
+        let importedRequests = 0;
+        let importedVault = 0;
+        let importedHistory = 0;
+
+        // 1. Merge savedRequests
+        if (Array.isArray(data.savedRequests)) {
+          setSavedRequests((prev) => {
+            const map = new Map(prev.map(item => [item.id, item]));
+            for (const item of data.savedRequests) {
+              if (item && item.id) {
+                map.set(item.id, item);
+                importedRequests++;
+              }
+            }
+            return Array.from(map.values());
+          });
+        }
+
+        // 2. Merge vaultKeys
+        if (Array.isArray(data.vaultKeys)) {
+          setVaultKeys((prev) => {
+            const map = new Map(prev.map(k => [k.id, k]));
+            for (const k of data.vaultKeys) {
+              if (k && k.id) {
+                map.set(k.id, k);
+                importedVault++;
+              }
+            }
+            return Array.from(map.values());
+          });
+        }
+
+        // 3. Merge history
+        if (Array.isArray(data.history)) {
+          setHistory((prev) => {
+            const map = new Map(prev.map(h => [h.id, h]));
+            for (const h of data.history) {
+              if (h && h.id) {
+                map.set(h.id, h);
+                importedHistory++;
+              }
+            }
+            return Array.from(map.values());
+          });
+        }
+
+        // 4. Restore settings if present
+        if (data.settings && typeof data.settings === 'object') {
+          if (data.settings.theme) {
+            setTheme(data.settings.theme);
+            setTempTheme(data.settings.theme);
+          }
+          if (data.settings.fontFamily) {
+            setFontFamily(data.settings.fontFamily);
+            setTempFontFamily(data.settings.fontFamily);
+          }
+          if (data.settings.fontSize) {
+            setFontSize(data.settings.fontSize);
+            setTempFontSize(data.settings.fontSize);
+          }
+          if (data.settings.language) {
+            setLanguage(data.settings.language);
+            setTempLanguage(data.settings.language);
+          }
+        }
+
+        // 5. Restore tabs if current tabs are empty or fresh
+        if (Array.isArray(data.tabs) && data.tabs.length > 0) {
+          setTabs((prev) => {
+            if (prev.length <= 1 && (!prev[0] || !prev[0].request.url)) {
+              if (data.activeTabId) setActiveTabId(data.activeTabId);
+              return data.tabs;
+            }
+            return prev;
+          });
+        }
+
+        setBackupStatusMsg({
+          text: language === 'id' 
+            ? `Berhasil mengimport data (${importedRequests} koleksi, ${importedVault} key vault, ${importedHistory} riwayat)!`
+            : `Successfully imported data (${importedRequests} collections, ${importedVault} vault keys, ${importedHistory} history)!`
+        });
+        setTimeout(() => setBackupStatusMsg(null), 5000);
+      } catch (err: any) {
+        setBackupStatusMsg({
+          text: language === 'id' ? `Gagal membaca file: ${err?.message || 'Format JSON rusak'}` : `Failed to read file: ${err?.message || 'Corrupted JSON'}`,
+          isError: true
+        });
+        setTimeout(() => setBackupStatusMsg(null), 5000);
+      }
+    };
+    reader.readAsText(file);
   };
 
   useEffect(() => {
@@ -931,7 +1103,62 @@ function App() {
               </div>
             </div>
             
-            <div className="modal-actions" style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+            {backupStatusMsg && (
+              <div style={{
+                backgroundColor: backupStatusMsg.isError ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+                border: `1px solid ${backupStatusMsg.isError ? 'var(--error-color)' : 'var(--success-color)'}`,
+                color: backupStatusMsg.isError ? 'var(--error-color)' : 'var(--success-color)',
+                padding: '8px 12px',
+                borderRadius: '6px',
+                fontSize: '0.85rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginTop: '1.2rem'
+              }}>
+                {backupStatusMsg.isError ? <X size={16} /> : <Check size={16} />}
+                <span>{backupStatusMsg.text}</span>
+              </div>
+            )}
+
+            <div className="modal-actions" style={{ 
+              marginTop: '1.5rem', 
+              paddingTop: '1rem', 
+              borderTop: '1px solid var(--border-color)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button 
+                  type="button"
+                  className="btn-secondary" 
+                  onClick={handleExportData} 
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0.45rem 0.85rem' }}
+                  title="Export semua koleksi, riwayat, key vault, & pengaturan ke file JSON"
+                >
+                  <Download size={15} />
+                  <span>Export</span>
+                </button>
+                <button 
+                  type="button"
+                  className="btn-secondary" 
+                  onClick={handleTriggerImport} 
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0.45rem 0.85rem' }}
+                  title="Import data dari file JSON backup"
+                >
+                  <Upload size={15} />
+                  <span>Import</span>
+                </button>
+                <input 
+                  type="file" 
+                  ref={importFileInputRef} 
+                  onChange={handleImportFile} 
+                  accept=".json,application/json" 
+                  style={{ display: 'none' }} 
+                />
+              </div>
+
               <button className="btn-primary" onClick={saveSettings}>{t(language, 'save')}</button>
             </div>
           </div>
