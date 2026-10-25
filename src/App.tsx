@@ -4,7 +4,7 @@ import type { RequestConfig, TabData, HistoryItem, HttpMethod, AppTheme, SavedRe
 import { createEmptyRequest, parseUrlAndParams, t } from './utils';
 import { RequestEditor } from './components/RequestEditor';
 import { ResponseEditor } from './components/ResponseEditor';
-import { Clock, Plus, X, Trash2, Settings, Save, Folder, Menu, Search, Key, Copy, Check, ArrowRight } from 'lucide-react';
+import { Clock, Plus, X, Trash2, Settings, Save, Folder, Menu, Search, Key, Copy, Check } from 'lucide-react';
 
 function App() {
   const [tabs, setTabs] = useState<TabData[]>([]);
@@ -37,7 +37,6 @@ function App() {
   const [newVaultNote, setNewVaultNote] = useState('');
   const [vaultError, setVaultError] = useState('');
   const [copiedVaultId, setCopiedVaultId] = useState<string | null>(null);
-  const [appliedVaultId, setAppliedVaultId] = useState<string | null>(null);
   const isLoadedRef = useRef(false);
 
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
@@ -429,25 +428,6 @@ function App() {
     navigator.clipboard.writeText(value);
     setCopiedVaultId(id);
     setTimeout(() => setCopiedVaultId(null), 1500);
-  };
-
-  const handleApplyVaultKey = (vaultKey: UserVaultKey) => {
-    if (!activeTab) return;
-    const existingHeaders = [...activeTab.request.headers];
-    const idx = existingHeaders.findIndex(h => h.key.trim().toLowerCase() === vaultKey.field.trim().toLowerCase());
-    if (idx !== -1) {
-      existingHeaders[idx] = { ...existingHeaders[idx], value: vaultKey.value, active: true };
-    } else {
-      const emptyIdx = existingHeaders.findIndex(h => !h.key.trim() && !h.value.trim());
-      if (emptyIdx !== -1) {
-        existingHeaders[emptyIdx] = { ...existingHeaders[emptyIdx], key: vaultKey.field, value: vaultKey.value, active: true };
-      } else {
-        existingHeaders.push({ id: uuidv4(), key: vaultKey.field, value: vaultKey.value, active: true });
-      }
-    }
-    updateActiveTabRequest({ ...activeTab.request, headers: existingHeaders });
-    setAppliedVaultId(vaultKey.id);
-    setTimeout(() => setAppliedVaultId(null), 1500);
   };
 
   const handleSaveToVault = (field: string, value: string, note: string = '') => {
@@ -997,8 +977,8 @@ function App() {
                   </div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                     {language === 'id' 
-                      ? 'Daftar key dan token yang disimpan (field | value | note) untuk digunakan pada Header request.' 
-                      : 'Saved keys and tokens (field | value | note) for quick use in request headers.'}
+                      ? 'Daftar key dan value yang disimpan (field | value | note).' 
+                      : 'Saved keys and values (field | value | note).'}
                   </div>
                 </div>
               </div>
@@ -1107,16 +1087,14 @@ function App() {
                       top: 0,
                       zIndex: 2
                     }}>
-                      <th style={{ padding: '0.6rem 0.8rem', width: '25%', fontWeight: '600' }}>field</th>
-                      <th style={{ padding: '0.6rem 0.8rem', width: '38%', fontWeight: '600' }}>value</th>
-                      <th style={{ padding: '0.6rem 0.8rem', width: '22%', fontWeight: '600' }}>note</th>
-                      <th style={{ padding: '0.6rem 0.8rem', width: '15%', textAlign: 'center', fontWeight: '600' }}>{language === 'id' ? 'Aksi' : 'Action'}</th>
+                      <th style={{ padding: '0.6rem 0.8rem', width: '28%', fontWeight: '600' }}>field</th>
+                      <th style={{ padding: '0.6rem 0.8rem', width: '46%', fontWeight: '600' }}>value</th>
+                      <th style={{ padding: '0.6rem 0.8rem', width: '26%', fontWeight: '600' }}>note</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredVaultKeys.map((item) => {
                       const isCopied = copiedVaultId === item.id;
-                      const isApplied = appliedVaultId === item.id;
                       return (
                         <tr 
                           key={item.id} 
@@ -1138,7 +1116,7 @@ function App() {
                               borderRadius: '4px',
                               border: '1px solid var(--border-color)',
                               display: 'inline-block',
-                              maxWidth: '160px',
+                              maxWidth: '180px',
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
                               whiteSpace: 'nowrap'
@@ -1158,7 +1136,7 @@ function App() {
                                   padding: '2px 6px',
                                   borderRadius: '4px',
                                   fontSize: '0.8rem',
-                                  maxWidth: '220px',
+                                  maxWidth: '260px',
                                   overflow: 'hidden',
                                   textOverflow: 'ellipsis',
                                   whiteSpace: 'nowrap',
@@ -1202,49 +1180,16 @@ function App() {
 
                           {/* Column 3: Note */}
                           <td style={{ padding: '0.6rem 0.8rem', verticalAlign: 'middle', color: 'var(--text-secondary)' }}>
-                            <span style={{ 
-                              display: 'inline-block', 
-                              maxWidth: '150px', 
-                              overflow: 'hidden', 
-                              textOverflow: 'ellipsis', 
-                              whiteSpace: 'nowrap' 
-                            }} title={item.note || '-'}>
-                              {item.note || <span style={{ opacity: 0.5 }}>-</span>}
-                            </span>
-                          </td>
-
-                          {/* Column 4: Actions */}
-                          <td style={{ padding: '0.6rem 0.8rem', verticalAlign: 'middle', textAlign: 'center' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                              <button
-                                onClick={() => handleApplyVaultKey(item)}
-                                title={language === 'id' ? 'Terapkan ke Request Header aktif' : 'Apply to active Request Header'}
-                                style={{
-                                  background: isApplied ? '#10b981' : 'var(--bg-input)',
-                                  border: `1px solid ${isApplied ? '#10b981' : 'var(--border-color)'}`,
-                                  borderRadius: '4px',
-                                  cursor: 'pointer',
-                                  padding: '3px 6px',
-                                  color: isApplied ? '#ffffff' : 'var(--text-primary)',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '3px',
-                                  fontSize: '0.75rem',
-                                  transition: 'all 0.15s'
-                                }}
-                              >
-                                {isApplied ? (
-                                  <>
-                                    <Check size={12} strokeWidth={2.5} />
-                                    <span>{language === 'id' ? 'Diterapkan' : 'Applied'}</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <ArrowRight size={12} />
-                                    <span>{language === 'id' ? '+ Header' : '+ Header'}</span>
-                                  </>
-                                )}
-                              </button>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                              <span style={{ 
+                                display: 'inline-block', 
+                                maxWidth: '170px', 
+                                overflow: 'hidden', 
+                                textOverflow: 'ellipsis', 
+                                whiteSpace: 'nowrap' 
+                              }} title={item.note || '-'}>
+                                {item.note || <span style={{ opacity: 0.5 }}>-</span>}
+                              </span>
                               <button
                                 onClick={() => handleDeleteVaultKey(item.id)}
                                 title={language === 'id' ? 'Hapus key ini' : 'Delete this key'}
@@ -1256,10 +1201,17 @@ function App() {
                                   color: 'var(--text-secondary)',
                                   borderRadius: '4px',
                                   display: 'flex',
-                                  alignItems: 'center'
+                                  alignItems: 'center',
+                                  opacity: 0.6
                                 }}
-                                onMouseEnter={(e) => e.currentTarget.style.color = 'var(--error-color)'}
-                                onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-secondary)'}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.color = 'var(--error-color)';
+                                  e.currentTarget.style.opacity = '1';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.color = 'var(--text-secondary)';
+                                  e.currentTarget.style.opacity = '0.6';
+                                }}
                               >
                                 <Trash2 size={13} />
                               </button>
