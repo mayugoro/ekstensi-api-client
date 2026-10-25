@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Copy, Check, Search, ChevronUp, ChevronDown, X, ArrowUp } from 'lucide-react';
 import type { ResponseDetails } from '../types';
 import { t, getHttpStatusText } from '../utils';
@@ -18,7 +18,12 @@ export const ResponseEditor: React.FC<Props> = ({ response, loading, language })
   const [searchQuery, setSearchQuery] = useState('');
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const [hasNavigated, setHasNavigated] = useState(false);
+  const [treeMatchesCount, setTreeMatchesCount] = useState<number | null>(null);
   const jsonViewerRef = useRef<HTMLDivElement>(null);
+
+  const handleTotalMatchesChange = useCallback((count: number) => {
+    setTreeMatchesCount((prev) => (prev === count ? prev : count));
+  }, []);
 
   const handleScrollToTop = () => {
     if (jsonViewerRef.current) {
@@ -37,6 +42,19 @@ export const ResponseEditor: React.FC<Props> = ({ response, loading, language })
     setCurrentMatchIndex(0);
     setHasNavigated(false);
   };
+
+  const parsedJson = useMemo(() => {
+    if (!response || response.body === undefined || response.body === null) return null;
+    if (typeof response.body === 'object') return response.body;
+    if (typeof response.body === 'string') {
+      try {
+        return JSON.parse(response.body);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }, [response]);
 
   const rawText = useMemo(() => {
     if (!response || !response.body) return '';
@@ -68,6 +86,22 @@ export const ResponseEditor: React.FC<Props> = ({ response, loading, language })
     }
   }, [escapedQuery, rawText]);
 
+  const effectiveMatchesCount = isRaw 
+    ? matchesCount 
+    : (treeMatchesCount !== null ? treeMatchesCount : matchesCount);
+
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setTreeMatchesCount(0);
+    }
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (effectiveMatchesCount > 0 && currentMatchIndex >= effectiveMatchesCount) {
+      setCurrentMatchIndex(0);
+    }
+  }, [effectiveMatchesCount, currentMatchIndex]);
+
   const triggerScrollToActive = () => {
     setTimeout(() => {
       const activeEl = document.getElementById('active-response-match');
@@ -76,40 +110,48 @@ export const ResponseEditor: React.FC<Props> = ({ response, loading, language })
         const viewerRect = viewerEl.getBoundingClientRect();
         const activeRect = activeEl.getBoundingClientRect();
         const currentScrollTop = viewerEl.scrollTop;
+        const currentScrollLeft = viewerEl.scrollLeft;
         
         // Menghitung posisi target agar tepat berada di tengah-tengah tinggi kotak respon
         const targetScrollTop = currentScrollTop + (activeRect.top - viewerRect.top) - (viewerRect.height / 2) + (activeRect.height / 2);
         
+        // Pastikan juga terlihat secara horizontal jika letak datanya menjorok jauh ke dalam (nested)
+        let targetScrollLeft = currentScrollLeft;
+        if (activeRect.left < viewerRect.left + 50 || activeRect.right > viewerRect.right - 50) {
+          targetScrollLeft = currentScrollLeft + (activeRect.left - viewerRect.left) - 60;
+        }
+
         viewerEl.scrollTo({
-          top: targetScrollTop,
+          top: Math.max(0, targetScrollTop),
+          left: Math.max(0, targetScrollLeft),
           behavior: 'smooth'
         });
       }
-    }, 40);
+    }, 50);
   };
 
   useEffect(() => {
-    if (hasNavigated && matchesCount > 0) {
+    if (hasNavigated && effectiveMatchesCount > 0) {
       triggerScrollToActive();
     }
-  }, [currentMatchIndex, hasNavigated, matchesCount]);
+  }, [currentMatchIndex, hasNavigated, effectiveMatchesCount]);
 
   const handleNextMatch = () => {
-    if (matchesCount > 0) {
-      setCurrentMatchIndex((prev) => (prev + 1) % matchesCount);
+    if (effectiveMatchesCount > 0) {
+      setCurrentMatchIndex((prev) => (prev + 1) % effectiveMatchesCount);
       triggerScrollToActive();
     }
   };
 
   const handlePrevMatch = () => {
-    if (matchesCount > 0) {
-      setCurrentMatchIndex((prev) => (prev - 1 + matchesCount) % matchesCount);
+    if (effectiveMatchesCount > 0) {
+      setCurrentMatchIndex((prev) => (prev - 1 + effectiveMatchesCount) % effectiveMatchesCount);
       triggerScrollToActive();
     }
   };
 
   const handleEnterPress = (shift: boolean) => {
-    if (matchesCount === 0) return;
+    if (effectiveMatchesCount === 0) return;
     if (!hasNavigated) {
       setHasNavigated(true);
       triggerScrollToActive();
@@ -304,16 +346,16 @@ export const ResponseEditor: React.FC<Props> = ({ response, loading, language })
                 />
                 {searchQuery && (
                   <>
-                    <span style={{ fontSize: '0.75rem', color: matchesCount > 0 ? 'var(--text-secondary)' : 'var(--error-color)', padding: '0 4px', whiteSpace: 'nowrap' }}>
-                      {matchesCount > 0 ? (hasNavigated ? `${currentMatchIndex + 1}/${matchesCount}` : `${matchesCount} hasil`) : '0/0'}
+                    <span style={{ fontSize: '0.75rem', color: effectiveMatchesCount > 0 ? 'var(--text-secondary)' : 'var(--error-color)', padding: '0 4px', whiteSpace: 'nowrap' }}>
+                      {effectiveMatchesCount > 0 ? (hasNavigated ? `${currentMatchIndex + 1}/${effectiveMatchesCount}` : `${effectiveMatchesCount} hasil`) : '0/0'}
                     </span>
                     <button 
                       onClick={() => {
                         handlePrevMatch();
                         setHasNavigated(true);
                       }}
-                      disabled={matchesCount === 0}
-                      style={{ background: 'none', border: 'none', padding: '2px', cursor: matchesCount > 0 ? 'pointer' : 'default', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}
+                      disabled={effectiveMatchesCount === 0}
+                      style={{ background: 'none', border: 'none', padding: '2px', cursor: effectiveMatchesCount > 0 ? 'pointer' : 'default', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}
                       title="Sebelumnya (Shift+Enter)"
                     >
                       <ChevronUp size={14} />
@@ -323,8 +365,8 @@ export const ResponseEditor: React.FC<Props> = ({ response, loading, language })
                         handleNextMatch();
                         setHasNavigated(true);
                       }}
-                      disabled={matchesCount === 0}
-                      style={{ background: 'none', border: 'none', padding: '2px', cursor: matchesCount > 0 ? 'pointer' : 'default', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}
+                      disabled={effectiveMatchesCount === 0}
+                      style={{ background: 'none', border: 'none', padding: '2px', cursor: effectiveMatchesCount > 0 ? 'pointer' : 'default', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}
                       title="Berikutnya (Enter)"
                     >
                       <ChevronDown size={14} />
@@ -390,7 +432,7 @@ export const ResponseEditor: React.FC<Props> = ({ response, loading, language })
               {isCopied ? <Check size={16} /> : <Copy size={16} />}
             </div>
             
-            {(isRaw || (typeof response.body === 'string' && !response.body.trim().startsWith('{') && !response.body.trim().startsWith('['))) ? (
+            {(isRaw || !parsedJson) ? (
               <div style={{ 
                 padding: '2.8rem 1rem 1rem 1rem', 
                 whiteSpace: 'pre-wrap', 
@@ -404,8 +446,14 @@ export const ResponseEditor: React.FC<Props> = ({ response, loading, language })
                 {highlightedContent}
               </div>
             ) : (
-              <div className="json-viewer" style={{ padding: '1rem' }}>
-                <JsonViewer data={typeof response.body === 'string' ? JSON.parse(response.body) : response.body} />
+              <div className="json-viewer" style={{ padding: '2.8rem 1rem 1rem 1rem' }}>
+                <JsonViewer 
+                  data={parsedJson} 
+                  searchQuery={searchQuery}
+                  activeMatchIndex={currentMatchIndex}
+                  hasNavigated={hasNavigated}
+                  onTotalMatchesChange={handleTotalMatchesChange}
+                />
               </div>
             )}
             
