@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import type { RequestConfig, TabData, HistoryItem, HttpMethod, AppTheme, SavedRequest } from './types';
 import { createEmptyRequest, parseUrlAndParams, t } from './utils';
 import { RequestEditor } from './components/RequestEditor';
 import { ResponseEditor } from './components/ResponseEditor';
-import { Clock, Plus, X, Trash2, Settings, Save, Folder, Menu } from 'lucide-react';
+import { Clock, Plus, X, Trash2, Settings, Save, Folder, Menu, Search } from 'lucide-react';
 
 function App() {
   const [tabs, setTabs] = useState<TabData[]>([]);
@@ -36,6 +36,17 @@ function App() {
   const [isHistoryFullscreenOpen, setIsHistoryFullscreenOpen] = useState(false);
   const [historyDisplayLimit, setHistoryDisplayLimit] = useState(15);
   const [historySearchQuery, setHistorySearchQuery] = useState('');
+  const [sidebarHistorySearch, setSidebarHistorySearch] = useState('');
+
+  const filteredHistory = useMemo(() => {
+    if (!sidebarHistorySearch.trim()) return history;
+    const query = sidebarHistorySearch.trim().toLowerCase();
+    return history.filter(item => {
+      const url = (item.request.url || '').toLowerCase();
+      const name = (item.folderName && item.request.name ? `${item.folderName}-${item.request.name}` : '').toLowerCase();
+      return url.includes(query) || name.includes(query);
+    });
+  }, [history, sidebarHistorySearch]);
 
   // Settings temporary state
   const [tempTheme, setTempTheme] = useState<AppTheme>('dark');
@@ -392,12 +403,46 @@ function App() {
         {sidebarTab === 'history' && history.length > 0 && (
           <div style={{ 
             display: 'flex', 
-            justifyContent: 'flex-end', 
-            padding: '0.4rem 1rem',
+            alignItems: 'center',
+            padding: '0.4rem 0.8rem',
             borderBottom: '1px solid var(--border-color)',
             backgroundColor: 'var(--bg-panel)',
-            gap: '12px'
+            gap: '8px'
           }}>
+            <div style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              backgroundColor: 'var(--bg-input)',
+              padding: '3px 8px',
+              borderRadius: '4px',
+              border: '1px solid var(--border-color)'
+            }}>
+              <Search size={13} style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
+              <input 
+                type="text"
+                placeholder="Cari path / base URL..."
+                value={sidebarHistorySearch}
+                onChange={(e) => setSidebarHistorySearch(e.target.value)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  outline: 'none',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.8rem',
+                  width: '100%',
+                  fontFamily: 'inherit'
+                }}
+              />
+              {sidebarHistorySearch && (
+                <X 
+                  size={13} 
+                  style={{ color: 'var(--text-secondary)', cursor: 'pointer', flexShrink: 0 }} 
+                  onClick={() => setSidebarHistorySearch('')} 
+                />
+              )}
+            </div>
             <div onClick={openCleanupModal} title={t(language, 'cleanupHistoryTitle')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--text-secondary)' }}>
               <Trash2 size={16} />
             </div>
@@ -407,7 +452,7 @@ function App() {
           </div>
         )}
         <div className="sidebar-content">
-          {sidebarTab === 'history' && history.map(item => (
+          {sidebarTab === 'history' && filteredHistory.map(item => (
             <div key={item.id} className="sidebar-item" onClick={() => loadHistoryItem(item)}>
               <span className={`method-badge ${item.request.method}`}>{item.request.method}</span>
               <span style={{ wordBreak: 'break-all', fontSize: '0.85em' }}>
@@ -420,6 +465,11 @@ function App() {
           {sidebarTab === 'history' && history.length === 0 && (
             <div style={{ padding: '1rem', color: 'var(--text-secondary)', textAlign: 'center', fontSize: '0.9rem' }}>
               {t(language, 'noHistory')}
+            </div>
+          )}
+          {sidebarTab === 'history' && history.length > 0 && filteredHistory.length === 0 && (
+            <div style={{ padding: '1rem', color: 'var(--text-secondary)', textAlign: 'center', fontSize: '0.85rem' }}>
+              Tidak ada hasil yang cocok dengan "{sidebarHistorySearch}"
             </div>
           )}
 
