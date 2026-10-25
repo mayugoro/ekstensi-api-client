@@ -8,6 +8,13 @@ export interface KeyValuePair {
   active: boolean;
 }
 
+export interface UserVaultKey {
+  id: string;
+  field: string;
+  value: string;
+  note: string;
+}
+
 export type AuthType = 'none' | 'bearer' | 'basic' | 'apikey';
 
 export interface RequestConfig {

@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import type { RequestConfig, TabData, HistoryItem, HttpMethod, AppTheme, SavedRequest } from './types';
+import type { RequestConfig, TabData, HistoryItem, HttpMethod, AppTheme, SavedRequest, UserVaultKey } from './types';
 import { createEmptyRequest, parseUrlAndParams, t } from './utils';
 import { RequestEditor } from './components/RequestEditor';
 import { ResponseEditor } from './components/ResponseEditor';
-import { Clock, Plus, X, Trash2, Settings, Save, Folder, Menu, Search } from 'lucide-react';
+import { Clock, Plus, X, Trash2, Settings, Save, Folder, Menu, Search, Key, Copy, Check, ArrowRight } from 'lucide-react';
 
 function App() {
   const [tabs, setTabs] = useState<TabData[]>([]);
@@ -28,6 +28,18 @@ function App() {
   const saveFolderInputRef = useRef<HTMLInputElement>(null);
   const tabsHeaderRef = useRef<HTMLDivElement>(null);
   
+  // Key / Token Vault state
+  const [isVaultModalOpen, setIsVaultModalOpen] = useState(false);
+  const [vaultKeys, setVaultKeys] = useState<UserVaultKey[]>([]);
+  const [vaultSearchQuery, setVaultSearchQuery] = useState('');
+  const [newVaultField, setNewVaultField] = useState('');
+  const [newVaultValue, setNewVaultValue] = useState('');
+  const [newVaultNote, setNewVaultNote] = useState('');
+  const [vaultError, setVaultError] = useState('');
+  const [copiedVaultId, setCopiedVaultId] = useState<string | null>(null);
+  const [appliedVaultId, setAppliedVaultId] = useState<string | null>(null);
+  const isLoadedRef = useRef(false);
+
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
   const [deleteTarget, setDeleteTarget] = useState<SavedRequest | null>(null);
   const [isCleanupOpen, setIsCleanupOpen] = useState(false);
@@ -37,6 +49,17 @@ function App() {
   const [historyDisplayLimit, setHistoryDisplayLimit] = useState(15);
   const [historySearchQuery, setHistorySearchQuery] = useState('');
   const [sidebarHistorySearch, setSidebarHistorySearch] = useState('');
+
+  const filteredVaultKeys = useMemo(() => {
+    if (!vaultSearchQuery.trim()) return vaultKeys;
+    const query = vaultSearchQuery.trim().toLowerCase();
+    return vaultKeys.filter(item => {
+      const fieldMatch = (item.field || '').toLowerCase().includes(query);
+      const valueMatch = (item.value || '').toLowerCase().includes(query);
+      const noteMatch = (item.note || '').toLowerCase().includes(query);
+      return fieldMatch || valueMatch || noteMatch;
+    });
+  }, [vaultKeys, vaultSearchQuery]);
 
   const filteredHistory = useMemo(() => {
     if (!sidebarHistorySearch.trim()) return history;
@@ -72,7 +95,7 @@ function App() {
 
   useEffect(() => {
     // Load from storage
-    chrome.storage?.local.get(['tabs', 'activeTabId', 'history', 'theme', 'savedRequests', 'fontFamily', 'fontSize', 'language'], (result: any) => {
+    chrome.storage?.local.get(['tabs', 'activeTabId', 'history', 'theme', 'savedRequests', 'fontFamily', 'fontSize', 'language', 'vaultKeys'], (result: any) => {
       if (result.tabs && result.tabs.length > 0) {
         setTabs(result.tabs);
         setActiveTabId(result.activeTabId || result.tabs[0].id);
@@ -89,6 +112,20 @@ function App() {
       if (result.fontFamily) setFontFamily(result.fontFamily);
       if (result.fontSize) setFontSize(result.fontSize);
       if (result.language) setLanguage(result.language);
+      if (result.vaultKeys && Array.isArray(result.vaultKeys)) {
+        setVaultKeys(result.vaultKeys);
+      } else {
+        // Default example from user: Authorization | Bearer akjshdakhsdadaj | milik user
+        setVaultKeys([
+          {
+            id: uuidv4(),
+            field: 'Authorization',
+            value: 'Bearer akjshdakhsdadaj',
+            note: 'milik user'
+          }
+        ]);
+      }
+      isLoadedRef.current = true;
     });
   }, []);
 
@@ -132,10 +169,10 @@ function App() {
 
   useEffect(() => {
     // Save to storage
-    if (tabs.length > 0) {
-      chrome.storage?.local.set({ tabs, activeTabId, history, theme, savedRequests, fontFamily, fontSize, language });
+    if (isLoadedRef.current && tabs.length > 0) {
+      chrome.storage?.local.set({ tabs, activeTabId, history, theme, savedRequests, fontFamily, fontSize, language, vaultKeys });
     }
-  }, [tabs, activeTabId, history, theme, savedRequests, fontFamily, fontSize, language]);
+  }, [tabs, activeTabId, history, theme, savedRequests, fontFamily, fontSize, language, vaultKeys]);
 
   const addNewTab = (request?: RequestConfig) => {
     const newTab: TabData = {
@@ -362,6 +399,71 @@ function App() {
     }
   };
 
+  const handleAddVaultKey = () => {
+    if (!newVaultField.trim()) {
+      setVaultError('Kolom Field harus diisi (contoh: Authorization)');
+      return;
+    }
+    if (!newVaultValue.trim()) {
+      setVaultError('Kolom Value harus diisi (contoh: Bearer ... )');
+      return;
+    }
+    const newItem: UserVaultKey = {
+      id: uuidv4(),
+      field: newVaultField.trim(),
+      value: newVaultValue.trim(),
+      note: newVaultNote.trim()
+    };
+    setVaultKeys([newItem, ...vaultKeys]);
+    setNewVaultField('');
+    setNewVaultValue('');
+    setNewVaultNote('');
+    setVaultError('');
+  };
+
+  const handleDeleteVaultKey = (id: string) => {
+    setVaultKeys(vaultKeys.filter(k => k.id !== id));
+  };
+
+  const handleCopyVaultValue = (id: string, value: string) => {
+    navigator.clipboard.writeText(value);
+    setCopiedVaultId(id);
+    setTimeout(() => setCopiedVaultId(null), 1500);
+  };
+
+  const handleApplyVaultKey = (vaultKey: UserVaultKey) => {
+    if (!activeTab) return;
+    const existingHeaders = [...activeTab.request.headers];
+    const idx = existingHeaders.findIndex(h => h.key.trim().toLowerCase() === vaultKey.field.trim().toLowerCase());
+    if (idx !== -1) {
+      existingHeaders[idx] = { ...existingHeaders[idx], value: vaultKey.value, active: true };
+    } else {
+      const emptyIdx = existingHeaders.findIndex(h => !h.key.trim() && !h.value.trim());
+      if (emptyIdx !== -1) {
+        existingHeaders[emptyIdx] = { ...existingHeaders[emptyIdx], key: vaultKey.field, value: vaultKey.value, active: true };
+      } else {
+        existingHeaders.push({ id: uuidv4(), key: vaultKey.field, value: vaultKey.value, active: true });
+      }
+    }
+    updateActiveTabRequest({ ...activeTab.request, headers: existingHeaders });
+    setAppliedVaultId(vaultKey.id);
+    setTimeout(() => setAppliedVaultId(null), 1500);
+  };
+
+  const handleSaveToVault = (field: string, value: string, note: string = '') => {
+    const newItem: UserVaultKey = {
+      id: uuidv4(),
+      field: field.trim(),
+      value: value.trim(),
+      note: note.trim()
+    };
+    setVaultKeys(prev => {
+      const updated = [newItem, ...prev];
+      chrome.storage?.local.set({ vaultKeys: updated });
+      return updated;
+    });
+  };
+
   const activeTab = tabs.find(t => t.id === activeTabId);
 
   // Group collections by folder
@@ -392,12 +494,46 @@ function App() {
             {sidebarTab === 'history' ? <Clock size={16} style={{ marginRight: '8px', verticalAlign: 'text-bottom' }} /> : <Folder size={16} style={{ marginRight: '8px', verticalAlign: 'text-bottom' }} />}
             {sidebarTab === 'history' ? t(language, 'history') : t(language, 'saved')}
           </span>
-          <div className="settings-menu" title={t(language, 'settings')}>
-            <Settings 
-              size={16} 
-              style={{ cursor: 'pointer', color: 'var(--text-secondary)' }} 
-              onClick={openSettings} 
-            />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div 
+              className="key-auth-btn"
+              title="Key & Token Vault" 
+              onClick={() => {
+                setIsVaultModalOpen(true);
+                setVaultError('');
+              }}
+              style={{
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '24px',
+                height: '24px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #ffd700 0%, #ffae00 100%)',
+                boxShadow: '0 0 8px rgba(255, 215, 0, 0.4)',
+                border: '1px solid #ffe57f',
+                color: '#1a1a1a',
+                transition: 'transform 0.15s, box-shadow 0.15s'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'scale(1.1)';
+                e.currentTarget.style.boxShadow = '0 0 12px rgba(255, 215, 0, 0.7)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+                e.currentTarget.style.boxShadow = '0 0 8px rgba(255, 215, 0, 0.4)';
+              }}
+            >
+              <Key size={13} strokeWidth={2.5} />
+            </div>
+            <div className="settings-menu" title={t(language, 'settings')}>
+              <Settings 
+                size={16} 
+                style={{ cursor: 'pointer', color: 'var(--text-secondary)' }} 
+                onClick={openSettings} 
+              />
+            </div>
           </div>
         </div>
         {sidebarTab === 'history' && history.length > 0 && (
@@ -627,6 +763,7 @@ function App() {
                 theme={theme} 
                 isBlurred={isBlurred}
                 setIsBlurred={setIsBlurred}
+                onSaveToVault={handleSaveToVault}
               />
               <ResponseEditor response={activeTab.response} loading={activeTab.loading} language={language} theme={theme} />
             </div>
@@ -815,6 +952,336 @@ function App() {
             
             <div className="modal-actions" style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
               <button className="btn-primary" onClick={saveSettings}>{t(language, 'save')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Key & Token Vault Modal */}
+      {isVaultModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsVaultModalOpen(false)}>
+          <div 
+            className="modal-content" 
+            onClick={(e) => e.stopPropagation()} 
+            style={{ width: '740px', maxWidth: '94vw', maxHeight: '88vh', display: 'flex', flexDirection: 'column', gap: '1rem' }}
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.8rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #ffd700 0%, #ffae00 100%)',
+                  boxShadow: '0 0 10px rgba(255, 215, 0, 0.5)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#1a1a1a'
+                }}>
+                  <Key size={15} strokeWidth={2.5} />
+                </div>
+                <div>
+                  <div style={{ fontWeight: 'bold', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>Key & Token Vault</span>
+                    <span style={{ 
+                      fontSize: '0.75rem', 
+                      padding: '2px 8px', 
+                      borderRadius: '10px', 
+                      backgroundColor: 'var(--bg-input)', 
+                      border: '1px solid var(--border-color)',
+                      color: 'var(--text-secondary)'
+                    }}>
+                      {vaultKeys.length} {language === 'id' ? 'tersimpan' : 'saved'}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    {language === 'id' 
+                      ? 'Daftar key dan token yang disimpan (field | value | note) untuk digunakan pada Header request.' 
+                      : 'Saved keys and tokens (field | value | note) for quick use in request headers.'}
+                  </div>
+                </div>
+              </div>
+              <X size={20} style={{ cursor: 'pointer', color: 'var(--text-secondary)' }} onClick={() => setIsVaultModalOpen(false)} />
+            </div>
+
+            {/* Form Input Tambah Baru */}
+            <div style={{ 
+              backgroundColor: 'var(--bg-input)', 
+              border: '1px solid var(--border-color)', 
+              borderRadius: '6px', 
+              padding: '0.8rem 1rem' 
+            }}>
+              <div style={{ fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
+                {language === 'id' ? '+ Tambah Key / Value Baru' : '+ Add New Key / Value'}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.8fr 1.2fr auto', gap: '8px', alignItems: 'center' }}>
+                <div>
+                  <input
+                    type="text"
+                    className="modal-input"
+                    placeholder="field (misal: Authorization)"
+                    value={newVaultField}
+                    onChange={(e) => setNewVaultField(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleAddVaultKey(); }}
+                    style={{ fontSize: '0.85rem', padding: '0.45rem 0.6rem' }}
+                  />
+                </div>
+                <div>
+                  <input
+                    type="text"
+                    className="modal-input"
+                    placeholder="value (misal: Bearer akjshd...)"
+                    value={newVaultValue}
+                    onChange={(e) => setNewVaultValue(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleAddVaultKey(); }}
+                    style={{ fontSize: '0.85rem', padding: '0.45rem 0.6rem', fontFamily: 'monospace' }}
+                  />
+                </div>
+                <div>
+                  <input
+                    type="text"
+                    className="modal-input"
+                    placeholder="note (misal: milik user)"
+                    value={newVaultNote}
+                    onChange={(e) => setNewVaultNote(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleAddVaultKey(); }}
+                    style={{ fontSize: '0.85rem', padding: '0.45rem 0.6rem' }}
+                  />
+                </div>
+                <div>
+                  <button 
+                    className="btn-primary" 
+                    onClick={handleAddVaultKey}
+                    style={{ padding: '0.45rem 1rem', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+                  >
+                    <Plus size={14} style={{ marginRight: '4px', verticalAlign: 'text-bottom' }} />
+                    {language === 'id' ? 'Simpan' : 'Save'}
+                  </button>
+                </div>
+              </div>
+              {vaultError && (
+                <div style={{ color: 'var(--error-color)', fontSize: '0.8rem', marginTop: '0.4rem' }}>
+                  {vaultError}
+                </div>
+              )}
+            </div>
+
+            {/* Filter Search Bar jika ada data > 2 */}
+            {vaultKeys.length > 2 && (
+              <div style={{ position: 'relative' }}>
+                <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                <input
+                  type="text"
+                  className="modal-input"
+                  placeholder={language === 'id' ? 'Cari berdasarkan field, value, atau note...' : 'Filter by field, value, or note...'}
+                  value={vaultSearchQuery}
+                  onChange={(e) => setVaultSearchQuery(e.target.value)}
+                  style={{ paddingLeft: '32px', fontSize: '0.85rem' }}
+                />
+              </div>
+            )}
+
+            {/* 3-Column Table: field | value | note */}
+            <div style={{ 
+              flex: 1, 
+              overflowY: 'auto', 
+              border: '1px solid var(--border-color)', 
+              borderRadius: '6px',
+              backgroundColor: 'var(--bg-main)',
+              minHeight: '180px',
+              maxHeight: '340px'
+            }}>
+              {filteredVaultKeys.length === 0 ? (
+                <div style={{ padding: '2.5rem 1rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                  {language === 'id' ? 'Belum ada data key atau value yang tersimpan.' : 'No saved keys or values found.'}
+                </div>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                  <thead>
+                    <tr style={{ 
+                      backgroundColor: 'var(--bg-panel)', 
+                      borderBottom: '1px solid var(--border-color)',
+                      color: 'var(--text-secondary)',
+                      position: 'sticky',
+                      top: 0,
+                      zIndex: 2
+                    }}>
+                      <th style={{ padding: '0.6rem 0.8rem', width: '25%', fontWeight: '600' }}>field</th>
+                      <th style={{ padding: '0.6rem 0.8rem', width: '38%', fontWeight: '600' }}>value</th>
+                      <th style={{ padding: '0.6rem 0.8rem', width: '22%', fontWeight: '600' }}>note</th>
+                      <th style={{ padding: '0.6rem 0.8rem', width: '15%', textAlign: 'center', fontWeight: '600' }}>{language === 'id' ? 'Aksi' : 'Action'}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredVaultKeys.map((item) => {
+                      const isCopied = copiedVaultId === item.id;
+                      const isApplied = appliedVaultId === item.id;
+                      return (
+                        <tr 
+                          key={item.id} 
+                          style={{ 
+                            borderBottom: '1px solid var(--border-color)',
+                            transition: 'background-color 0.15s'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                        >
+                          {/* Column 1: Field */}
+                          <td style={{ padding: '0.6rem 0.8rem', verticalAlign: 'middle' }}>
+                            <span style={{ 
+                              fontWeight: '600', 
+                              fontFamily: 'monospace', 
+                              color: 'var(--accent-color)',
+                              backgroundColor: 'var(--bg-input)',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              border: '1px solid var(--border-color)',
+                              display: 'inline-block',
+                              maxWidth: '160px',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap'
+                            }} title={item.field}>
+                              {item.field}
+                            </span>
+                          </td>
+
+                          {/* Column 2: Value */}
+                          <td style={{ padding: '0.6rem 0.8rem', verticalAlign: 'middle' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span 
+                                style={{ 
+                                  fontFamily: 'monospace', 
+                                  color: 'var(--text-primary)',
+                                  backgroundColor: 'var(--bg-input)',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  fontSize: '0.8rem',
+                                  maxWidth: '220px',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                  flex: 1
+                                }}
+                                title={item.value}
+                              >
+                                {item.value}
+                              </span>
+                              <button
+                                onClick={() => handleCopyVaultValue(item.id, item.value)}
+                                title={language === 'id' ? 'Salin value' : 'Copy value'}
+                                style={{
+                                  background: isCopied ? '#10b981' : 'var(--bg-panel)',
+                                  border: `1px solid ${isCopied ? '#10b981' : 'var(--border-color)'}`,
+                                  borderRadius: '4px',
+                                  cursor: 'pointer',
+                                  padding: '3px 6px',
+                                  color: isCopied ? '#ffffff' : 'var(--text-secondary)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  fontSize: '0.75rem',
+                                  transition: 'all 0.15s'
+                                }}
+                              >
+                                {isCopied ? (
+                                  <>
+                                    <Check size={12} strokeWidth={2.5} />
+                                    <span>{language === 'id' ? 'Tersalin' : 'Copied'}</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy size={12} />
+                                    <span>{language === 'id' ? 'Salin' : 'Copy'}</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </td>
+
+                          {/* Column 3: Note */}
+                          <td style={{ padding: '0.6rem 0.8rem', verticalAlign: 'middle', color: 'var(--text-secondary)' }}>
+                            <span style={{ 
+                              display: 'inline-block', 
+                              maxWidth: '150px', 
+                              overflow: 'hidden', 
+                              textOverflow: 'ellipsis', 
+                              whiteSpace: 'nowrap' 
+                            }} title={item.note || '-'}>
+                              {item.note || <span style={{ opacity: 0.5 }}>-</span>}
+                            </span>
+                          </td>
+
+                          {/* Column 4: Actions */}
+                          <td style={{ padding: '0.6rem 0.8rem', verticalAlign: 'middle', textAlign: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                              <button
+                                onClick={() => handleApplyVaultKey(item)}
+                                title={language === 'id' ? 'Terapkan ke Request Header aktif' : 'Apply to active Request Header'}
+                                style={{
+                                  background: isApplied ? '#10b981' : 'var(--bg-input)',
+                                  border: `1px solid ${isApplied ? '#10b981' : 'var(--border-color)'}`,
+                                  borderRadius: '4px',
+                                  cursor: 'pointer',
+                                  padding: '3px 6px',
+                                  color: isApplied ? '#ffffff' : 'var(--text-primary)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                  fontSize: '0.75rem',
+                                  transition: 'all 0.15s'
+                                }}
+                              >
+                                {isApplied ? (
+                                  <>
+                                    <Check size={12} strokeWidth={2.5} />
+                                    <span>{language === 'id' ? 'Diterapkan' : 'Applied'}</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <ArrowRight size={12} />
+                                    <span>{language === 'id' ? '+ Header' : '+ Header'}</span>
+                                  </>
+                                )}
+                              </button>
+                              <button
+                                onClick={() => handleDeleteVaultKey(item.id)}
+                                title={language === 'id' ? 'Hapus key ini' : 'Delete this key'}
+                                style={{
+                                  background: 'transparent',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  padding: '3px 5px',
+                                  color: 'var(--text-secondary)',
+                                  borderRadius: '4px',
+                                  display: 'flex',
+                                  alignItems: 'center'
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.color = 'var(--error-color)'}
+                                onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-secondary)'}
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Modal Actions */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '0.5rem', borderTop: '1px solid var(--border-color)' }}>
+              <button 
+                className="btn-secondary" 
+                onClick={() => setIsVaultModalOpen(false)}
+                style={{ padding: '0.5rem 1.2rem', fontSize: '0.85rem' }}
+              >
+                {t(language, 'cancel') || (language === 'id' ? 'Tutup' : 'Close')}
+              </button>
             </div>
           </div>
         </div>

@@ -16,9 +16,10 @@ interface Props {
   theme: string;
   isBlurred: boolean;
   setIsBlurred: (v: boolean) => void;
+  onSaveToVault?: (field: string, value: string, note: string) => void;
 }
 
-export const RequestEditor: React.FC<Props> = ({ request, onChange, language, isBlurred, setIsBlurred }) => {
+export const RequestEditor: React.FC<Props> = ({ request, onChange, language, isBlurred, setIsBlurred, onSaveToVault }) => {
   const [activeTab, setActiveTab] = useState<'params'|'headers'|'body'|'auth'>('headers');
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [showFilter, setShowFilter] = useState(false);
@@ -151,6 +152,8 @@ export const RequestEditor: React.FC<Props> = ({ request, onChange, language, is
             items={request.headers} 
             onChange={(items) => onChange({ ...request, headers: items })} 
             type="headers"
+            onSaveToVault={onSaveToVault}
+            language={language}
           />
         )}
         
