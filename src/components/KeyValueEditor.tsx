@@ -390,19 +390,52 @@ export const KeyValueEditor: React.FC<Props> = ({ items, onChange, type = 'param
               />
             </div>
 
-            {/* Filter Search jika > 2 items */}
-            {vaultKeys && vaultKeys.length > 2 && (
-              <div style={{ position: 'relative' }}>
-                <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+            {/* Kolom Pencarian Partial */}
+            {vaultKeys && vaultKeys.length > 0 && (
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <Search size={14} style={{ position: 'absolute', left: '10px', color: 'var(--text-secondary)', pointerEvents: 'none' }} />
                 <input
                   type="text"
                   className="modal-input"
-                  placeholder={language === 'id' ? 'Cari field, value, atau note...' : 'Filter field, value, or note...'}
+                  placeholder={language === 'id' ? 'Cari partial (field, value, atau note)...' : 'Search (field, value, or note)...'}
                   value={pickerSearchQuery}
                   autoFocus
                   onChange={(e) => setPickerSearchQuery(e.target.value)}
-                  style={{ paddingLeft: '32px', fontSize: '0.85rem' }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const query = pickerSearchQuery.trim().toLowerCase();
+                      const matched = query 
+                        ? vaultKeys.filter(k => 
+                            k.field.toLowerCase().includes(query) || 
+                            k.value.toLowerCase().includes(query) || 
+                            k.note.toLowerCase().includes(query)
+                          )
+                        : vaultKeys;
+                      if (matched.length > 0) {
+                        handleSelectVaultKey(matched[0]);
+                      }
+                    }
+                  }}
+                  style={{ paddingLeft: '32px', paddingRight: pickerSearchQuery ? '30px' : '10px', fontSize: '0.85rem' }}
                 />
+                {pickerSearchQuery && (
+                  <div 
+                    onClick={() => setPickerSearchQuery('')}
+                    style={{ 
+                      position: 'absolute', 
+                      right: '8px', 
+                      cursor: 'pointer', 
+                      color: 'var(--text-secondary)', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      padding: '2px' 
+                    }}
+                    title={language === 'id' ? 'Hapus pencarian' : 'Clear search'}
+                  >
+                    <X size={13} />
+                  </div>
+                )}
               </div>
             )}
 
