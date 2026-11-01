@@ -336,6 +336,9 @@ function App() {
       if (result.tabs && result.tabs.length > 0) {
         setTabs(result.tabs);
         setActiveTabId(result.activeTabId || result.tabs[0].id);
+      } else if (result.tabs && Array.isArray(result.tabs) && result.tabs.length === 0) {
+        setTabs([]);
+        setActiveTabId(null);
       } else {
         addNewTab();
       }
@@ -433,13 +436,8 @@ function App() {
     const newTabs = tabs.filter(t => t.id !== id);
     
     if (newTabs.length === 0) {
-      const newTab: TabData = {
-        id: uuidv4(),
-        request: createEmptyRequest(),
-        loading: false
-      };
-      setTabs([newTab]);
-      setActiveTabId(newTab.id);
+      setTabs([]);
+      setActiveTabId(null);
     } else {
       setTabs(newTabs);
       if (activeTabId === id) {
@@ -455,13 +453,8 @@ function App() {
     });
     activeRequestsRef.current = {};
 
-    const newTab: TabData = {
-      id: uuidv4(),
-      request: createEmptyRequest(),
-      loading: false
-    };
-    setTabs([newTab]);
-    setActiveTabId(newTab.id);
+    setTabs([]);
+    setActiveTabId(null);
   };
 
   const updateActiveTabRequest = (req: RequestConfig) => {
@@ -1010,16 +1003,18 @@ function App() {
               );
             })}
           </div>
-          <button 
-            className="close-all-tabs-btn" 
-            onClick={handleCloseAllTabs} 
-            title={language === 'id' ? 'Tutup semua tab workspace' : 'Close all workspace tabs'}
-          >
-            <Trash2 size={16} />
-          </button>
+          {tabs.length > 0 && (
+            <button 
+              className="close-all-tabs-btn" 
+              onClick={handleCloseAllTabs} 
+              title={language === 'id' ? 'Tutup semua tab workspace' : 'Close all workspace tabs'}
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
         </div>
 
-        {activeTab && (
+        {activeTab ? (
           <>
             <div className="request-bar">
               <div style={{ position: 'relative' }}>
@@ -1069,14 +1064,33 @@ function App() {
                   </>
                 )}
               </div>
-              <textarea 
+              <input 
+                type="text"
                 className={`request-url-input ${isBlurred ? 'blur-effect' : ''}`}
                 placeholder={t(language, 'enterUrl')}
                 value={activeTab.request.url}
                 onChange={(e) => {
-                  e.target.style.height = 'auto';
-                  e.target.style.height = e.target.scrollHeight + 'px';
-                  updateActiveTabRequest({ ...activeTab.request, url: e.target.value.replace(/\r?\n/g, '') });
+                  const cleaned = e.target.value.replace(/[\r\n\t]/g, '');
+                  updateActiveTabRequest({ ...activeTab.request, url: cleaned });
+                }}
+                onPaste={(e) => {
+                  e.preventDefault();
+                  const pastedData = e.clipboardData.getData('text');
+                  // Bersihkan enter (\r, \n), tab (\t), dan spasi di awal/akhir salinan
+                  const cleanedPaste = pastedData.replace(/[\r\n\t]/g, '').trim();
+                  
+                  const target = e.currentTarget;
+                  const start = target.selectionStart ?? 0;
+                  const end = target.selectionEnd ?? 0;
+                  const currentVal = activeTab.request.url || '';
+                  const newVal = (currentVal.slice(0, start) + cleanedPaste + currentVal.slice(end)).trim();
+                  
+                  updateActiveTabRequest({ ...activeTab.request, url: newVal });
+                }}
+                onBlur={() => {
+                  if (activeTab.request.url && activeTab.request.url.trim() !== activeTab.request.url) {
+                    updateActiveTabRequest({ ...activeTab.request, url: activeTab.request.url.trim() });
+                  }
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
@@ -1084,8 +1098,7 @@ function App() {
                     handleSend();
                   }
                 }}
-                rows={1}
-                style={{ resize: 'none', overflow: 'hidden', minHeight: '38px', boxSizing: 'border-box' }}
+                style={{ height: '38px', boxSizing: 'border-box' }}
               />
               <button 
                 className={activeTab.loading ? "btn-secondary" : "btn-primary"} 
@@ -1127,6 +1140,50 @@ function App() {
               <ResponseEditor response={activeTab.response} loading={activeTab.loading} language={language} theme={theme} />
             </div>
           </>
+        ) : (
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: 'calc(100vh - 120px)',
+            color: 'var(--text-secondary)',
+            gap: '16px',
+            padding: '2rem'
+          }}>
+            <div style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '16px',
+              backgroundColor: 'var(--bg-panel)',
+              border: '1px solid var(--border-color)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--accent-color)',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.2)'
+            }}>
+              <Plus size={32} />
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>
+                {language === 'id' ? 'Workspace Bersih' : 'Workspace Empty'}
+              </div>
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', maxWidth: '360px', lineHeight: 1.5 }}>
+                {language === 'id' 
+                  ? 'Tidak ada tab request yang terbuka. Klik tombol + di atas atau tombol di bawah untuk membuat request baru.' 
+                  : 'No open request tabs. Click the + button above or below to start a new request.'}
+              </div>
+            </div>
+            <button 
+              className="btn-primary" 
+              onClick={() => addNewTab()}
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0.65rem 1.25rem', marginTop: '6px', fontSize: '0.9rem', fontWeight: 600 }}
+            >
+              <Plus size={16} />
+              <span>{language === 'id' ? 'Buat Request Baru' : 'New Request'}</span>
+            </button>
+          </div>
         )}
       </div>
 

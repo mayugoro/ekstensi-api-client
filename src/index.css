@@ -466,9 +466,16 @@ input, select, textarea, button {
   background-color: var(--bg-input);
   color: var(--text-primary);
   border: 1px solid var(--border-color);
-  padding: 0.5rem;
+  padding: 0.5rem 0.75rem;
   border-radius: 4px;
-  font-size: 1rem;
+  font-size: 0.95rem;
+  outline: none;
+  height: 38px;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+.request-url-input:focus {
+  border-color: var(--accent-color);
 }
 .btn-primary {
   background-color: var(--accent-color);

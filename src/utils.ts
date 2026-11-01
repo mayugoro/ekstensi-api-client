@@ -20,8 +20,9 @@ export const createEmptyKV = (): KeyValuePair => ({
 });
 
 export const parseUrlAndParams = (url: string, queryParams: KeyValuePair[]) => {
+  const cleanUrl = (url || '').trim().replace(/[\r\n\t]/g, '');
   try {
-    const urlObj = new URL(url.includes('://') ? url : `http://${url}`);
+    const urlObj = new URL(cleanUrl.includes('://') ? cleanUrl : `http://${cleanUrl}`);
     
     // Add params from KV
     const activeParams = queryParams.filter(p => p.active && p.key);
@@ -34,8 +35,9 @@ export const parseUrlAndParams = (url: string, queryParams: KeyValuePair[]) => {
     // Fallback if invalid URL
     if (queryParams.filter(p => p.active && p.key).length > 0) {
       const qs = queryParams.filter(p => p.active && p.key).map(p => `${p.key}=${p.value}`).join('&');
-      return url.includes('?') ? `${url}&${qs}` : `${url}?${qs}`;
+      return cleanUrl.includes('?') ? `${cleanUrl}&${qs}` : `${cleanUrl}?${qs}`;
     }
+    return cleanUrl;
   }
 };
 
