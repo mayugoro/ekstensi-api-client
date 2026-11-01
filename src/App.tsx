@@ -699,11 +699,32 @@ function App() {
   };
 
   // Group collections by folder
-  const collectionsByFolder = savedRequests.reduce((acc, req) => {
-    if (!acc[req.folderName]) acc[req.folderName] = [];
-    acc[req.folderName].push(req);
-    return acc;
-  }, {} as Record<string, SavedRequest[]>);
+  const collectionsByFolder = useMemo(() => {
+    return savedRequests.reduce((acc, req) => {
+      const folder = req.folderName || 'General';
+      if (!acc[folder]) acc[folder] = [];
+      acc[folder].push(req);
+      return acc;
+    }, {} as Record<string, SavedRequest[]>);
+  }, [savedRequests]);
+
+  // Sort collections and their items alphabetically A-Z
+  const sortedCollectionEntries = useMemo(() => {
+    return Object.entries(collectionsByFolder)
+      .sort(([folderA], [folderB]) => 
+        (folderA || '').localeCompare(folderB || '', undefined, { sensitivity: 'base', numeric: true })
+      )
+      .map(([folder, reqs]) => {
+        const sortedReqs = [...reqs].sort((a, b) => 
+          (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base', numeric: true })
+        );
+        return [folder, sortedReqs] as [string, SavedRequest[]];
+      });
+  }, [collectionsByFolder]);
+
+  const sortedFolderKeys = useMemo(() => {
+    return sortedCollectionEntries.map(([folder]) => folder);
+  }, [sortedCollectionEntries]);
 
   const toggleFolder = (folderName: string) => {
     setExpandedFolders(prev => ({ ...prev, [folderName]: !prev[folderName] }));
@@ -841,7 +862,7 @@ function App() {
             </div>
           )}
 
-          {sidebarTab === 'collections' && Object.entries(collectionsByFolder).map(([folder, reqs]) => (
+          {sidebarTab === 'collections' && sortedCollectionEntries.map(([folder, reqs]) => (
             <div key={folder}>
               <div className="collection-folder" onClick={() => toggleFolder(folder)} style={{ display: 'flex', alignItems: 'center' }}>
                 <span style={{ marginRight: '6px', fontSize: '0.8rem', display: 'inline-block', width: '12px', textAlign: 'center' }}>
@@ -1041,7 +1062,7 @@ function App() {
                 list="folder-suggestions"
               />
               <datalist id="folder-suggestions">
-                {Object.keys(collectionsByFolder).map(f => (
+                {sortedFolderKeys.map(f => (
                   <option key={f} value={f} />
                 ))}
               </datalist>

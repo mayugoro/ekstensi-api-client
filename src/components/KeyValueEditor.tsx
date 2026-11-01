@@ -11,7 +11,7 @@ const ALL_HEADER_KEYS = [
   'Host', 'If-Match', 'If-Modified-Since', 'If-None-Match', 'If-Range',
   'If-Unmodified-Since', 'Max-Forwards', 'Origin', 'Pragma',
   'Proxy-Authorization', 'Range', 'Referer', 'TE', 'User-Agent',
-  'Upgrade', 'Via', 'Warning', 'X-Api-Key', 'X-Client', 'X-Requested-With', 'X-Forwarded-For'
+  'Upgrade', 'Via', 'Warning', 'X-Api-Key', 'X-Client', 'X-SIGN', 'X-Requested-With', 'X-Forwarded-For'
 ];
 
 interface Props {
