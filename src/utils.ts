@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { RequestConfig, KeyValuePair } from './types';
+import type { RequestConfig, KeyValuePair, ResponseDetails } from './types';
 
 export const createEmptyRequest = (): RequestConfig => ({
   id: uuidv4(),
@@ -96,7 +96,9 @@ export const t = (lang: string, key: string): string => {
       noHistoryFound: 'No history entries found',
       loadAllBtn: 'LOAD ALL (THIS MAY TAKE A WHILE)',
       deleteEntryTitle: 'Delete entry',
-      viewAllHistoryIconTitle: 'View all history'
+      viewAllHistoryIconTitle: 'View all history',
+      copyCurl: 'Copy cURL & Response',
+      copied: 'Copied!'
     },
     id: {
       history: 'Riwayat',
@@ -153,7 +155,9 @@ export const t = (lang: string, key: string): string => {
       noHistoryFound: 'Tidak ada entri riwayat yang ditemukan',
       loadAllBtn: 'MUAT SEMUA (MUNGKIN MEMBUTUHKAN WAKTU LAMA)',
       deleteEntryTitle: 'Hapus entri',
-      viewAllHistoryIconTitle: 'Lihat semua riwayat'
+      viewAllHistoryIconTitle: 'Lihat semua riwayat',
+      copyCurl: 'Salin cURL & Response',
+      copied: 'Tersalin!'
     }
   };
 
@@ -200,4 +204,101 @@ export const getHttpStatusText = (status?: number): string => {
     504: 'Gateway Timeout'
   };
   return statusCodes[status] || 'Unknown Status';
+};
+
+export const generateCurlWithResponse = (request: RequestConfig, response?: ResponseDetails): string => {
+  // 1. URL & Query Params
+  let finalUrl = parseUrlAndParams(request.url, request.queryParams) || request.url || '';
+
+  // Auth: apikey with 'query'
+  if (request.authType === 'apikey' && request.authConfig?.in === 'query' && request.authConfig?.key) {
+    const separator = finalUrl.includes('?') ? '&' : '?';
+    finalUrl += `${separator}${encodeURIComponent(request.authConfig.key)}=${encodeURIComponent(request.authConfig.value || '')}`;
+  }
+
+  const lines: string[] = [];
+  const method = request.method || 'GET';
+  lines.push(`curl --location --request ${method} '${finalUrl.replace(/'/g, "'\\''")}'`);
+
+  // 2. Headers
+  const activeHeaders = (request.headers || []).filter(h => h.active && h.key && h.key.trim() !== '');
+  activeHeaders.forEach(h => {
+    lines.push(`  --header '${h.key.replace(/'/g, "'\\''")}: ${h.value.replace(/'/g, "'\\''")}'`);
+  });
+
+  // Auth: Bearer, Basic, apikey in header
+  if (request.authType === 'bearer' && request.authConfig?.token) {
+    lines.push(`  --header 'Authorization: Bearer ${request.authConfig.token.replace(/'/g, "'\\''")}'`);
+  } else if (request.authType === 'basic' && request.authConfig?.username) {
+    const credentials = btoa(`${request.authConfig.username}:${request.authConfig.password || ''}`);
+    lines.push(`  --header 'Authorization: Basic ${credentials}'`);
+  } else if (request.authType === 'apikey' && request.authConfig?.in !== 'query' && request.authConfig?.key) {
+    lines.push(`  --header '${request.authConfig.key.replace(/'/g, "'\\''")}: ${(request.authConfig.value || '').replace(/'/g, "'\\''")}'`);
+  }
+
+  // 3. Body
+  if (request.method !== 'GET' && request.body && request.body.trim() !== '') {
+    lines.push(`  --data-raw '${request.body.replace(/'/g, "'\\''")}'`);
+  }
+
+  const curlCommand = lines.join(' \\\n');
+
+  // 4. Response Snippet
+  let responsePart = '';
+  if (!response) {
+    responsePart = '\n\n# Response: (Belum ada response / request belum dikirim)';
+  } else {
+    const statusText = response.status 
+      ? `${response.status} ${response.statusText || getHttpStatusText(response.status)}`
+      : (response.success ? 'Success' : 'Error');
+    const timeText = response.time !== undefined ? ` - ${response.time}ms` : '';
+    const sizeText = response.size ? ` - ${(response.size / 1024).toFixed(2)} KB` : '';
+    
+    responsePart = `\n\n# Response (${statusText}${timeText}${sizeText}):\n`;
+
+    let bodyStr = '';
+    if (response.body !== undefined && response.body !== null) {
+      if (typeof response.body === 'object') {
+        try {
+          bodyStr = JSON.stringify(response.body, null, 2);
+        } catch {
+          bodyStr = String(response.body);
+        }
+      } else if (typeof response.body === 'string') {
+        const trimmed = response.body.trim();
+        if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+          try {
+            bodyStr = JSON.stringify(JSON.parse(response.body), null, 2);
+          } catch {
+            bodyStr = response.body;
+          }
+        } else {
+          bodyStr = response.body;
+        }
+      } else {
+        bodyStr = String(response.body);
+      }
+    }
+
+    if (response.error) {
+      bodyStr = bodyStr ? `Error: ${response.error}\n${bodyStr}` : `Error: ${response.error}`;
+    }
+
+    if (bodyStr.trim() !== '') {
+      const splitLines = bodyStr.split(/\r?\n/);
+      const maxLines = 15;
+      const previewLines = splitLines.slice(0, maxLines);
+      const isTruncated = splitLines.length > maxLines;
+
+      const commented = previewLines.map(line => `# ${line}`).join('\n');
+      responsePart += commented;
+      if (isTruncated) {
+        responsePart += `\n# ... [sisa ${splitLines.length - maxLines} baris dipotong]`;
+      }
+    } else {
+      responsePart += '# (Empty response body)';
+    }
+  }
+
+  return curlCommand + responsePart;
 };

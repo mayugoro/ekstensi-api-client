@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import type { RequestConfig, TabData, HistoryItem, HttpMethod, AppTheme, SavedRequest, UserVaultKey } from './types';
-import { createEmptyRequest, parseUrlAndParams, t } from './utils';
+import { createEmptyRequest, parseUrlAndParams, t, generateCurlWithResponse } from './utils';
 import { RequestEditor } from './components/RequestEditor';
 import { ResponseEditor } from './components/ResponseEditor';
-import { Clock, Plus, X, Trash2, Settings, Save, Folder, Menu, Search, Key, Copy, Check, Upload, Lock, Eye, EyeOff } from 'lucide-react';
+import { Clock, Plus, X, Trash2, Settings, Save, Folder, Menu, Search, Key, Copy, Check, Upload, Lock, Eye, EyeOff, CodeXml } from 'lucide-react';
 import { encryptData, decryptData, isEncryptedBackup, type EncryptedPayload } from './crypto';
 
 function App() {
@@ -38,6 +38,7 @@ function App() {
   const [newVaultNote, setNewVaultNote] = useState('');
   const [vaultError, setVaultError] = useState('');
   const [copiedVaultId, setCopiedVaultId] = useState<string | null>(null);
+  const [isCurlCopied, setIsCurlCopied] = useState(false);
   const isLoadedRef = useRef(false);
 
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
@@ -682,6 +683,21 @@ function App() {
 
   const activeTab = tabs.find(t => t.id === activeTabId);
 
+  const handleCopyCurl = () => {
+    if (!activeTab) return;
+    try {
+      const curlSnippet = generateCurlWithResponse(activeTab.request, activeTab.response);
+      navigator.clipboard.writeText(curlSnippet).then(() => {
+        setIsCurlCopied(true);
+        setTimeout(() => setIsCurlCopied(false), 1500);
+      }).catch((err) => {
+        console.error('Failed to copy cURL snippet:', err);
+      });
+    } catch (err) {
+      console.error('Failed to generate cURL snippet:', err);
+    }
+  };
+
   // Group collections by folder
   const collectionsByFolder = savedRequests.reduce((acc, req) => {
     if (!acc[req.folderName]) acc[req.folderName] = [];
@@ -969,6 +985,14 @@ function App() {
               <button className="btn-secondary" onClick={() => { setIsSaveModalOpen(true); setSaveError(''); }} title={t(language, 'saveReq')}>
                 <Save size={18} />
               </button>
+              <button 
+                className="btn-secondary" 
+                onClick={handleCopyCurl} 
+                title={isCurlCopied ? t(language, 'copied') : t(language, 'copyCurl')}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                {isCurlCopied ? <Check size={18} style={{ color: 'var(--accent-hover, #10b981)' }} /> : <CodeXml size={18} />}
+              </button>
             </div>
 
             <div className="workspace-content">
@@ -990,38 +1014,16 @@ function App() {
 
       {/* Save Modal */}
       {isSaveModalOpen && (
-        <div className="modal-overlay" onClick={() => setIsSaveModalOpen(false)}>
+        <div className="modal-overlay">
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-title">{t(language, 'saveReq')}</div>
-            <div>
-              <label style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{t(language, 'reqName')}</label>
-              <input 
-                ref={saveRequestInputRef}
-                type="text" 
-                className="modal-input" 
-                autoFocus
-                style={{ textTransform: 'uppercase' }}
-                placeholder="e.g., Get User Profile" 
-                value={saveRequestName}
-                onChange={(e) => setSaveRequestName(e.target.value.toUpperCase())}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    if (saveRequestName.trim() && saveFolderName.trim()) {
-                      handleSaveRequest();
-                    } else if (saveRequestName.trim()) {
-                      saveFolderInputRef.current?.focus();
-                    }
-                  }
-                }}
-              />
-            </div>
             <div>
               <label style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{t(language, 'folderCol')}</label>
               <input 
                 ref={saveFolderInputRef}
                 type="text" 
                 className="modal-input" 
+                autoFocus
                 style={{ textTransform: 'uppercase' }}
                 placeholder="e.g., Auth API" 
                 value={saveFolderName}
@@ -1031,7 +1033,7 @@ function App() {
                     e.preventDefault();
                     if (saveRequestName.trim() && saveFolderName.trim()) {
                       handleSaveRequest();
-                    } else if (!saveRequestName.trim()) {
+                    } else if (saveFolderName.trim()) {
                       saveRequestInputRef.current?.focus();
                     }
                   }
@@ -1043,6 +1045,28 @@ function App() {
                   <option key={f} value={f} />
                 ))}
               </datalist>
+            </div>
+            <div>
+              <label style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{t(language, 'reqName')}</label>
+              <input 
+                ref={saveRequestInputRef}
+                type="text" 
+                className="modal-input" 
+                style={{ textTransform: 'uppercase' }}
+                placeholder="e.g., Get User Profile" 
+                value={saveRequestName}
+                onChange={(e) => setSaveRequestName(e.target.value.toUpperCase())}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (saveRequestName.trim() && saveFolderName.trim()) {
+                      handleSaveRequest();
+                    } else if (!saveFolderName.trim()) {
+                      saveFolderInputRef.current?.focus();
+                    }
+                  }
+                }}
+              />
             </div>
             {saveError && (
               <div style={{ color: 'var(--error-color)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
