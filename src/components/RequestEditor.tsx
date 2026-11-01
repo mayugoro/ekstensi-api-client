@@ -168,7 +168,7 @@ export const RequestEditor: React.FC<Props> = ({ request, onChange, language, is
                 <Wand2 size={14} style={{ marginRight: '4px' }} /> {t(language, 'pretty')}
               </button>
             </div>
-            <div className={`editor-wrapper ${jsonError ? 'invalid' : ''}`} style={{ border: jsonError ? '1px solid var(--error-color)' : '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden', backgroundColor: 'var(--bg-input)' }}>
+            <div className={`editor-wrapper ${jsonError ? 'invalid' : ''}`} style={{ border: jsonError ? '1px solid var(--error-color)' : '1px solid var(--border-color)', borderRadius: '4px', overflow: 'auto', maxHeight: '350px', backgroundColor: 'var(--bg-input)' }}>
               <Editor
                 value={request.body || ''}
                 onValueChange={(code: string) => onChange({ ...request, body: code })}
@@ -183,7 +183,7 @@ export const RequestEditor: React.FC<Props> = ({ request, onChange, language, is
                 style={{
                   fontFamily: 'inherit',
                   fontSize: 14,
-                  minHeight: '200px'
+                  minHeight: '55px'
                 }}
               />
             </div>

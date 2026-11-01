@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Copy, Check, Search, ChevronUp, ChevronDown, X, ArrowUp } from 'lucide-react';
+import { Copy, Check, Search, ChevronUp, ChevronDown, X, ArrowUp, Maximize, Minimize } from 'lucide-react';
 import type { ResponseDetails } from '../types';
 import { t, getHttpStatusText } from '../utils';
 import { JsonViewer } from './JsonViewer';
@@ -19,7 +19,18 @@ export const ResponseEditor: React.FC<Props> = ({ response, loading, language })
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const [hasNavigated, setHasNavigated] = useState(false);
   const [treeMatchesCount, setTreeMatchesCount] = useState<number | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const jsonViewerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFullscreen]);
 
   const handleTotalMatchesChange = useCallback((count: number) => {
     setTreeMatchesCount((prev) => (prev === count ? prev : count));
@@ -266,7 +277,26 @@ export const ResponseEditor: React.FC<Props> = ({ response, loading, language })
       
       <div className="section-content" style={{ padding: 0 }}>
         {activeTab === 'body' && (
-          <div className="json-viewer" ref={jsonViewerRef} style={{ position: 'relative', maxHeight: '520px', overflow: 'auto' }}>
+          <div 
+            className="json-viewer" 
+            ref={jsonViewerRef} 
+            style={isFullscreen ? {
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              width: '100vw',
+              height: '100vh',
+              maxHeight: '100vh',
+              zIndex: 9999,
+              backgroundColor: 'var(--bg-panel)',
+              overflow: 'auto',
+              boxSizing: 'border-box'
+            } : {
+              position: 'relative',
+              maxHeight: '520px',
+              overflow: 'auto'
+            }}
+          >
             {/* Floating Sticky Search Bar in Center of Response Block */}
             <div style={{
               position: 'sticky',
@@ -409,27 +439,62 @@ export const ResponseEditor: React.FC<Props> = ({ response, loading, language })
               </button>
             </div>
 
-            {/* Copy Button */}
+            {/* Action Buttons: Fullscreen & Copy */}
             <div 
-              onClick={handleCopy}
               style={{
                 position: 'sticky',
                 top: '10px',
                 float: 'right',
                 zIndex: 25,
-                cursor: 'pointer',
-                padding: '6px',
-                borderRadius: '4px',
-                backgroundColor: 'var(--bg-color)',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
-                color: isCopied ? 'var(--success-color)' : 'var(--text-secondary)'
+                gap: '6px',
+                marginRight: '10px'
               }}
-              title="Copy to clipboard"
             >
-              {isCopied ? <Check size={16} /> : <Copy size={16} />}
+              {/* Fullscreen Button */}
+              <div 
+                onClick={() => setIsFullscreen(!isFullscreen)}
+                style={{
+                  cursor: 'pointer',
+                  padding: '6px',
+                  borderRadius: '4px',
+                  backgroundColor: 'var(--bg-color)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+                  color: isFullscreen ? 'var(--accent-color)' : 'var(--text-secondary)',
+                  transition: 'color 0.15s, background-color 0.15s'
+                }}
+                title={isFullscreen 
+                  ? (language === 'id' ? 'Keluar dari layar penuh (Esc)' : 'Exit fullscreen (Esc)') 
+                  : (language === 'id' ? 'Layar penuh' : 'Fullscreen')}
+              >
+                {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
+              </div>
+
+              {/* Copy Button */}
+              <div 
+                onClick={handleCopy}
+                style={{
+                  cursor: 'pointer',
+                  padding: '6px',
+                  borderRadius: '4px',
+                  backgroundColor: 'var(--bg-color)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+                  color: isCopied ? 'var(--success-color)' : 'var(--text-secondary)',
+                  transition: 'color 0.15s, background-color 0.15s'
+                }}
+                title={isCopied 
+                  ? (language === 'id' ? 'Tersalin!' : 'Copied!') 
+                  : (language === 'id' ? 'Salin ke clipboard' : 'Copy to clipboard')}
+              >
+                {isCopied ? <Check size={16} /> : <Copy size={16} />}
+              </div>
             </div>
             
             {(isRaw || !parsedJson) ? (
