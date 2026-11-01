@@ -323,6 +323,24 @@ input, select, textarea, button {
   background-color: var(--bg-dark);
   color: var(--text-primary);
 }
+.tabs-bar-container .close-all-tabs-btn {
+  flex-shrink: 0;
+  width: 44px;
+  padding: 0;
+  border: none;
+  border-left: 1px solid var(--border-color);
+  background-color: var(--bg-panel);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s, color 0.15s;
+}
+.tabs-bar-container .close-all-tabs-btn:hover {
+  background-color: var(--bg-dark);
+  color: var(--error-color, #ef4444);
+}
 .tabs-header {
   flex: 1;
   display: flex;
@@ -335,14 +353,20 @@ input, select, textarea, button {
   display: none; /* Chrome, Safari, Chromium */
 }
 .tab {
-  padding: 0 1.5rem;
+  position: relative;
+  width: 210px;
+  min-width: 210px;
+  max-width: 210px;
+  height: 100%;
+  padding: 0 24px;
+  box-sizing: border-box;
   cursor: pointer;
   border-right: 1px solid var(--border-color);
   background-color: var(--bg-panel);
   color: var(--text-secondary);
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: center;
   border-bottom: 2px solid transparent;
   flex-shrink: 0;
 }
@@ -351,15 +375,44 @@ input, select, textarea, button {
   color: var(--text-primary);
   border-bottom: 2px solid var(--accent-color);
 }
+.tab .tab-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  max-width: 100%;
+  overflow: hidden;
+}
+.tab .tab-content .method-badge {
+  flex-shrink: 0;
+}
+.tab .tab-content .tab-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85rem;
+}
 .tab .close-btn {
-  margin-left: 10px;
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
   background: none;
   border: none;
   color: var(--text-secondary);
   cursor: pointer;
   font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  padding: 0;
+  transition: all 0.15s;
 }
 .tab .close-btn:hover {
+  background-color: rgba(255, 255, 255, 0.12);
   color: var(--text-primary);
 }
 

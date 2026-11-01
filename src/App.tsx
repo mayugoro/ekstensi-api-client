@@ -40,6 +40,7 @@ function App() {
   const [copiedVaultId, setCopiedVaultId] = useState<string | null>(null);
   const [isCurlCopied, setIsCurlCopied] = useState(false);
   const isLoadedRef = useRef(false);
+  const activeRequestsRef = useRef<Record<string, { requestId: string; startTime: number }>>({});
 
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
   const [deleteTarget, setDeleteTarget] = useState<SavedRequest | null>(null);
@@ -425,6 +426,10 @@ function App() {
 
   const closeTab = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
+    if (activeRequestsRef.current[id]) {
+      chrome.runtime?.sendMessage?.({ type: 'CANCEL_FETCH', requestId: activeRequestsRef.current[id].requestId }, () => {});
+      delete activeRequestsRef.current[id];
+    }
     const newTabs = tabs.filter(t => t.id !== id);
     
     if (newTabs.length === 0) {
@@ -443,18 +448,73 @@ function App() {
     }
   };
 
+  const handleCloseAllTabs = () => {
+    // Abort all active requests
+    Object.keys(activeRequestsRef.current).forEach(id => {
+      chrome.runtime?.sendMessage?.({ type: 'CANCEL_FETCH', requestId: activeRequestsRef.current[id].requestId }, () => {});
+    });
+    activeRequestsRef.current = {};
+
+    const newTab: TabData = {
+      id: uuidv4(),
+      request: createEmptyRequest(),
+      loading: false
+    };
+    setTabs([newTab]);
+    setActiveTabId(newTab.id);
+  };
+
   const updateActiveTabRequest = (req: RequestConfig) => {
     setTabs(tabs.map(t => t.id === activeTabId ? { ...t, request: req } : t));
+  };
+
+  const handleCancelSend = (tabId: string) => {
+    const activeReq = activeRequestsRef.current[tabId];
+    if (activeReq) {
+      chrome.runtime?.sendMessage?.({ type: 'CANCEL_FETCH', requestId: activeReq.requestId }, () => {});
+      const elapsed = Date.now() - activeReq.startTime;
+      delete activeRequestsRef.current[tabId];
+
+      setTabs(prevTabs => prevTabs.map(t => t.id === tabId ? { 
+        ...t, 
+        loading: false,
+        response: { 
+          success: false, 
+          error: language === 'id' ? 'Request dibatalkan oleh pengguna' : 'Request cancelled by user',
+          time: elapsed 
+        }
+      } : t));
+    } else {
+      setTabs(prevTabs => prevTabs.map(t => t.id === tabId ? { 
+        ...t, 
+        loading: false,
+        response: { 
+          success: false, 
+          error: language === 'id' ? 'Request dibatalkan oleh pengguna' : 'Request cancelled by user'
+        }
+      } : t));
+    }
   };
 
   const handleSend = async () => {
     const activeTab = tabs.find(t => t.id === activeTabId);
     if (!activeTab) return;
 
+    // Jika tab sedang dalam proses sending, klik tombol lagi akan membatalkan (stop) request!
+    if (activeTab.loading) {
+      handleCancelSend(activeTab.id);
+      return;
+    }
+
     const { request } = activeTab;
+    const tabId = activeTab.id;
+    const requestId = uuidv4();
+    const startTime = Date.now();
+
+    activeRequestsRef.current[tabId] = { requestId, startTime };
     
     // Prepare fetch payload
-    setTabs(tabs.map(t => t.id === activeTabId ? { ...t, loading: true } : t));
+    setTabs(prevTabs => prevTabs.map(t => t.id === tabId ? { ...t, loading: true } : t));
 
     const finalUrl = parseUrlAndParams(request.url, request.queryParams);
     const headers: Record<string, string> = {};
@@ -470,6 +530,7 @@ function App() {
     }
 
     const payload = {
+      requestId,
       url: finalUrl,
       method: request.method,
       headers,
@@ -481,22 +542,35 @@ function App() {
         chrome.runtime.sendMessage({ type: 'FETCH_API', payload }, resolve);
       });
 
-      setTabs(tabs.map(t => t.id === activeTabId ? { 
+      // Abaikan respon jika request sudah dibatalkan oleh pengguna saat menunggu
+      if (activeRequestsRef.current[tabId]?.requestId !== requestId) {
+        return;
+      }
+      delete activeRequestsRef.current[tabId];
+
+      setTabs(prevTabs => prevTabs.map(t => t.id === tabId ? { 
         ...t, 
         loading: false,
         response: response
       } : t));
 
-      // Add to history
-      const historyItem: HistoryItem = {
-        id: uuidv4(),
-        timestamp: Date.now(),
-        request: { ...request },
-        folderName: activeTab.folderName
-      };
-      setHistory([historyItem, ...history].slice(0, 500)); // Keep last 500
+      // Add to history jika request bukan dibatalkan
+      if (response && response.error !== 'Request cancelled') {
+        const historyItem: HistoryItem = {
+          id: uuidv4(),
+          timestamp: Date.now(),
+          request: { ...request },
+          folderName: activeTab.folderName
+        };
+        setHistory(prevHistory => [historyItem, ...prevHistory].slice(0, 500)); // Keep last 500
+      }
     } catch (e) {
-      setTabs(tabs.map(t => t.id === activeTabId ? { 
+      if (activeRequestsRef.current[tabId]?.requestId !== requestId) {
+        return;
+      }
+      delete activeRequestsRef.current[tabId];
+
+      setTabs(prevTabs => prevTabs.map(t => t.id === tabId ? { 
         ...t, 
         loading: false,
         response: { success: false, error: 'Extension context invalidated or error sending request' }
@@ -908,28 +982,41 @@ function App() {
             <Plus size={18} />
           </button>
           <div className="tabs-header" ref={tabsHeaderRef}>
-            {tabs.map(tab => (
-              <div 
-                key={tab.id} 
-                className={`tab ${activeTabId === tab.id ? 'active' : ''}`}
-                onClick={() => setActiveTabId(tab.id)}
-              >
-                <span className={`method-badge ${tab.request.method}`} style={{ minWidth: '35px' }}>
-                  {tab.request.method}
-                </span>
-                <span style={tab.folderName && tab.request.name
-                    ? { whiteSpace: 'nowrap' }
-                    : { maxWidth: '120px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {tab.folderName && tab.request.name
-                    ? `${tab.folderName}-${tab.request.name}`
-                    : (tab.request.url || t(language, 'untitledReq'))}
-                </span>
-                <button className="close-btn" onClick={(e) => closeTab(e, tab.id)}>
-                  <X size={14} />
-                </button>
-              </div>
-            ))}
+            {tabs.map(tab => {
+              const tabTitle = tab.request.name || tab.request.url || t(language, 'untitledReq');
+              const fullTooltip = tab.folderName 
+                ? `[${tab.folderName}] ${tabTitle}` 
+                : tabTitle;
+
+              return (
+                <div 
+                  key={tab.id} 
+                  className={`tab ${activeTabId === tab.id ? 'active' : ''}`}
+                  onClick={() => setActiveTabId(tab.id)}
+                  title={fullTooltip}
+                >
+                  <div className="tab-content">
+                    <span className={`method-badge ${tab.request.method}`} style={{ minWidth: '35px' }}>
+                      {tab.request.method}
+                    </span>
+                    <span className="tab-title">
+                      {tabTitle}
+                    </span>
+                  </div>
+                  <button className="close-btn" onClick={(e) => closeTab(e, tab.id)} title="Close tab">
+                    <X size={14} />
+                  </button>
+                </div>
+              );
+            })}
           </div>
+          <button 
+            className="close-all-tabs-btn" 
+            onClick={handleCloseAllTabs} 
+            title={language === 'id' ? 'Tutup semua tab workspace' : 'Close all workspace tabs'}
+          >
+            <Trash2 size={16} />
+          </button>
         </div>
 
         {activeTab && (
@@ -1000,8 +1087,18 @@ function App() {
                 rows={1}
                 style={{ resize: 'none', overflow: 'hidden', minHeight: '38px', boxSizing: 'border-box' }}
               />
-              <button className="btn-primary" onClick={handleSend} disabled={activeTab.loading}>
-                {activeTab.loading ? t(language, 'sending') : t(language, 'send')}
+              <button 
+                className={activeTab.loading ? "btn-secondary" : "btn-primary"} 
+                onClick={handleSend}
+                style={activeTab.loading ? {
+                  color: 'var(--error-color, #ef4444)',
+                  borderColor: 'var(--error-color, #ef4444)',
+                  cursor: 'pointer',
+                  fontWeight: 600
+                } : undefined}
+                title={activeTab.loading ? (language === 'id' ? 'Klik untuk membatalkan (stop) request' : 'Click to cancel (stop) request') : undefined}
+              >
+                {activeTab.loading ? (language === 'id' ? 'Batal (Mengirim...)' : 'Cancel (Sending...)') : t(language, 'send')}
               </button>
               <button className="btn-secondary" onClick={() => { setIsSaveModalOpen(true); setSaveError(''); }} title={t(language, 'saveReq')}>
                 <Save size={18} />

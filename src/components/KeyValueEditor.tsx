@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { KeyValuePair, UserVaultKey } from '../types';
 import { createEmptyKV } from '../utils';
 import { Trash2, Save, Check, X, Lock, Search } from 'lucide-react';
@@ -31,6 +31,15 @@ export const KeyValueEditor: React.FC<Props> = ({ items, onChange, type = 'param
   // State untuk modal gembok (picker value dari vault)
   const [activePickerRowId, setActivePickerRowId] = useState<string | null>(null);
   const [pickerSearchQuery, setPickerSearchQuery] = useState('');
+
+  // Urutkan item vault secara alfabetis A-Z berdasarkan header (field), lalu berdasarkan note
+  const sortedVaultKeys = useMemo(() => {
+    return [...vaultKeys].sort((a, b) => {
+      const fieldDiff = (a.field || '').localeCompare(b.field || '', undefined, { sensitivity: 'base', numeric: true });
+      if (fieldDiff !== 0) return fieldDiff;
+      return (a.note || '').localeCompare(b.note || '', undefined, { sensitivity: 'base', numeric: true });
+    });
+  }, [vaultKeys]);
 
   const handleItemChange = (id: string, field: keyof KeyValuePair, value: any) => {
     const newItems = items.map(item => 
@@ -350,7 +359,7 @@ export const KeyValueEditor: React.FC<Props> = ({ items, onChange, type = 'param
 
       {/* Modal Picker Gembok: Ambil Value dari Key Vault */}
       {activePickerRowId && (
-        <div className="modal-overlay" onClick={() => setActivePickerRowId(null)}>
+        <div className="modal-overlay">
           <div 
             className="modal-content" 
             onClick={(e) => e.stopPropagation()} 
@@ -383,11 +392,6 @@ export const KeyValueEditor: React.FC<Props> = ({ items, onChange, type = 'param
                   </div>
                 </div>
               </div>
-              <X 
-                size={18} 
-                style={{ cursor: 'pointer', color: 'var(--text-secondary)' }} 
-                onClick={() => setActivePickerRowId(null)} 
-              />
             </div>
 
             {/* Kolom Pencarian Partial */}
@@ -397,7 +401,7 @@ export const KeyValueEditor: React.FC<Props> = ({ items, onChange, type = 'param
                 <input
                   type="text"
                   className="modal-input"
-                  placeholder={language === 'id' ? 'Cari partial (field, value, atau note)...' : 'Search (field, value, or note)...'}
+                  placeholder={language === 'id' ? 'Cari (header atau note)...' : 'Search (header or note)...'}
                   value={pickerSearchQuery}
                   autoFocus
                   onChange={(e) => setPickerSearchQuery(e.target.value)}
@@ -406,12 +410,12 @@ export const KeyValueEditor: React.FC<Props> = ({ items, onChange, type = 'param
                       e.preventDefault();
                       const query = pickerSearchQuery.trim().toLowerCase();
                       const matched = query 
-                        ? vaultKeys.filter(k => 
+                        ? sortedVaultKeys.filter(k => 
                             k.field.toLowerCase().includes(query) || 
                             k.value.toLowerCase().includes(query) || 
                             k.note.toLowerCase().includes(query)
                           )
-                        : vaultKeys;
+                        : sortedVaultKeys;
                       if (matched.length > 0) {
                         handleSelectVaultKey(matched[0]);
                       }
@@ -457,12 +461,12 @@ export const KeyValueEditor: React.FC<Props> = ({ items, onChange, type = 'param
               ) : (() => {
                 const query = pickerSearchQuery.trim().toLowerCase();
                 const filtered = query 
-                  ? vaultKeys.filter(k => 
+                  ? sortedVaultKeys.filter(k => 
                       k.field.toLowerCase().includes(query) || 
                       k.value.toLowerCase().includes(query) || 
                       k.note.toLowerCase().includes(query)
                     )
-                  : vaultKeys;
+                  : sortedVaultKeys;
 
                 if (filtered.length === 0) {
                   return (
@@ -477,15 +481,16 @@ export const KeyValueEditor: React.FC<Props> = ({ items, onChange, type = 'param
                     key={vk.id}
                     onClick={() => handleSelectVaultKey(vk)}
                     style={{
-                      padding: '0.65rem 0.85rem',
+                      padding: '0.55rem 0.85rem',
                       borderRadius: '6px',
                       border: '1px solid var(--border-color)',
                       backgroundColor: 'var(--bg-input)',
                       cursor: 'pointer',
                       transition: 'all 0.15s',
                       display: 'flex',
-                      flexDirection: 'column',
-                      gap: '4px'
+                      alignItems: 'center',
+                      gap: '8px',
+                      overflow: 'hidden'
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.borderColor = '#ffd700';
@@ -496,39 +501,27 @@ export const KeyValueEditor: React.FC<Props> = ({ items, onChange, type = 'param
                       e.currentTarget.style.backgroundColor = 'var(--bg-input)';
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ 
-                        fontWeight: 'bold', 
-                        fontFamily: 'monospace', 
-                        color: 'var(--accent-color)', 
-                        fontSize: '0.85rem' 
-                      }}>
-                        {vk.field}
-                      </span>
-                      {vk.note && (
-                        <span style={{ 
-                          fontSize: '0.75rem', 
-                          color: 'var(--text-secondary)',
-                          fontStyle: 'italic',
-                          maxWidth: '180px',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap'
-                        }}>
-                          {vk.note}
-                        </span>
-                      )}
-                    </div>
-                    <div style={{ 
+                    <span style={{ 
+                      fontWeight: 'bold', 
                       fontFamily: 'monospace', 
-                      fontSize: '0.78rem', 
-                      color: 'var(--text-primary)',
+                      color: 'var(--accent-color)', 
+                      fontSize: '0.85rem',
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0
+                    }}>
+                      {vk.field || '-'}
+                    </span>
+                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', flexShrink: 0 }}>:</span>
+                    <span style={{ 
+                      fontSize: '0.82rem', 
+                      color: vk.note ? 'var(--text-primary)' : 'var(--text-secondary)',
+                      fontStyle: vk.note ? 'normal' : 'italic',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap'
                     }}>
-                      {vk.value}
-                    </div>
+                      {vk.note || (language === 'id' ? 'tanpa catatan' : 'no note')}
+                    </span>
                   </div>
                 ));
               })()}
